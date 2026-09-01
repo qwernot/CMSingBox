@@ -106,6 +106,11 @@ func (s *JSONStore) load() error {
 
 	// 迁移旧的路径格式（移除多余的 data/ 前缀）
 	needSave := false
+	// CMSingBox 用作局域网网关时，Mixed 代理入口必须保持对局域网开放。
+	if !s.data.Settings.AllowLAN {
+		s.data.Settings.AllowLAN = true
+		needSave = true
+	}
 	// v1.0.5 之前没有独立的认证开关。已有代理凭据表示原配置启用了认证；
 	// 仅在字段完全缺失时迁移，避免用户明确关闭后重启又被自动打开。
 	if !bytes.Contains(data, []byte(`"mixed_auth_enabled"`)) {

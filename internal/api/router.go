@@ -106,6 +106,11 @@ func NewServer(store *storage.JSONStore, processManager *daemon.ProcessManager, 
 	s.scheduler.SetUpdateCallback(s.autoApplyConfig)
 
 	s.setupRoutes()
+	// 每次面板升级启动时重建一次配置，使默认值和配置生成器修复立即生效。
+	// 正在运行的 sing-box 会安全重启；用户手动停止的服务保持停止。
+	if err := s.autoApplyConfig(); err != nil {
+		logger.Printf("启动时自动应用配置失败: %v", err)
+	}
 	if err := dnsService.Start(); err != nil {
 		logger.Printf("启动 DNS 服务失败: %v", err)
 	}
@@ -647,8 +652,9 @@ func (s *Server) updateSettings(c *gin.Context) {
 		return
 	}
 
-	// 根据局域网访问设置处理代理入口认证。代理控制台始终可从管理端所在局域网访问，
+	// HTTP / SOCKS5 是网关的基础入口，始终保持局域网可访问。代理控制台也始终可从管理端所在局域网访问，
 	// 因此 Clash API 密钥与 AllowLAN 解耦，并保证永不为空。
+	settings.AllowLAN = true
 	if settings.AllowLAN {
 		if settings.MixedAuthEnabled {
 			if settings.MixedUsername == "" {
@@ -805,7 +811,7 @@ func (s *Server) autoApplyConfig() error {
 	}
 
 	// 如果 sing-box 正在运行，则重启
-	if s.processManager.IsRunning() {
+	if s.processManager != nil && s.processManager.IsRunning() {
 		return s.processManager.Restart()
 	}
 

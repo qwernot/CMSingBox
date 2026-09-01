@@ -625,27 +625,7 @@ export default function Settings() {
               </p>
               <p className="text-sm text-gray-500">监听 0.0.0.0，允许其他设备通过服务器 IP 和端口连接</p>
             </div>
-            <Switch
-              isSelected={formData.allow_lan}
-              onValueChange={(enabled) => {
-                const updates: Partial<typeof formData> = { allow_lan: enabled };
-                if (enabled) {
-                  // 开启局域网访问且密钥为空时，自动生成密钥
-                  if (!formData.clash_api_secret) {
-                    const charset = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-                    let secret = '';
-                    for (let i = 0; i < 16; i++) {
-                      secret += charset.charAt(Math.floor(Math.random() * charset.length));
-                    }
-                    updates.clash_api_secret = secret;
-                  }
-                } else {
-                  // 关闭局域网访问时，清除密钥
-                  updates.clash_api_secret = '';
-                }
-                setFormData({ ...formData, ...updates });
-              }}
-            />
+            <Chip color="success" variant="flat">默认开启</Chip>
           </div>
 
           {formData.allow_lan && (

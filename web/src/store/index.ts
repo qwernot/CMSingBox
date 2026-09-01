@@ -455,6 +455,7 @@ export const useStore = create<AppState>((set, get) => ({
       }
     } catch (error) {
       console.error('更新设置失败:', error);
+      throw error;
     }
   },
 

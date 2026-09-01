@@ -178,7 +178,7 @@ func DefaultSettings() *Settings {
 		ConfigPath:           "generated/config.json",
 		MixedPort:            2080,
 		TunEnabled:           true,
-		AllowLAN:             false, // 默认不允许局域网访问
+		AllowLAN:             true, // HTTP / SOCKS5 默认供局域网设备使用
 		MixedUsername:        "cmsingbox",
 		ProxyDNS:             "https://1.1.1.1/dns-query",
 		DirectDNS:            "https://dns.alidns.com/dns-query",
