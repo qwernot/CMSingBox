@@ -193,3 +193,24 @@ func TestConfigBuilder_ClashAPIIsReachableAndProtected(t *testing.T) {
 		t.Fatalf("secret = %q, want configured secret", api.Secret)
 	}
 }
+
+func TestConfigBuilder_WithoutNodesUsesDirectFallback(t *testing.T) {
+	config, err := NewConfigBuilder(storage.DefaultSettings(), nil, nil, nil, storage.DefaultRuleGroups()).Build()
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, outbound := range config.Outbounds {
+		if outbound["tag"] != "Proxy" {
+			continue
+		}
+		if outbound["default"] != "DIRECT" {
+			t.Fatalf("Proxy default = %#v, want DIRECT", outbound["default"])
+		}
+		values, ok := outbound["outbounds"].([]string)
+		if !ok || len(values) != 1 || values[0] != "DIRECT" {
+			t.Fatalf("Proxy outbounds = %#v, want [DIRECT]", outbound["outbounds"])
+		}
+		return
+	}
+	t.Fatal("Proxy selector missing")
+}

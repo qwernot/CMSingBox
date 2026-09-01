@@ -16,6 +16,34 @@
 go build -trimpath -o cmsingbox-license-server ./cmd/license-server
 ```
 
+## 原生 systemd 一键部署
+
+此方式不使用 Docker。脚本会下载并校验隔离的 Go 工具链、构建授权服务和命令行工具、安装 systemd 服务，然后启用 9093 端口：
+
+```bash
+git clone git@github.com:qwernot/CMSingBox.git
+cd CMSingBox
+sudo env CMSINGBOX_LICENSE_PASSWORD='Aa666333' CMSINGBOX_LICENSE_PORT='9093' sh deploy/license/install-native.sh
+```
+
+常用维护命令：
+
+```bash
+sudo systemctl status cmsingbox-license
+sudo journalctl -u cmsingbox-license -f
+sudo systemctl restart cmsingbox-license
+```
+
+原生数据目录是 `/var/lib/cmsingbox-license`，环境文件是 `/etc/cmsingbox-license.env`。如果同一源码目录中已有 Docker 版的 `deploy/license/license-data/private.key`，脚本会迁移同一把私钥并保留原文件，不会生成一套导致客户端公钥失效的新密钥。
+
+## Docker 一键部署
+
+```bash
+git clone git@github.com:qwernot/CMSingBox.git
+cd CMSingBox
+sudo env CMSINGBOX_LICENSE_PASSWORD='Aa666333' sh deploy/license/install.sh
+```
+
 ## 生成管理密码
 
 ```bash

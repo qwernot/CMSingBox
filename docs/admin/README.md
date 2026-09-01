@@ -10,7 +10,17 @@
 
 ## 总授权中心部署
 
-授权端不包含在普通用户的一键部署中。先克隆私有源码仓库，再单独执行：
+授权端不包含在普通用户的一键部署中。先克隆私有源码仓库，再选择 Docker 或原生 systemd 方式单独部署。
+
+### 原生 systemd 部署（不使用 Docker）
+
+```bash
+git clone git@github.com:qwernot/CMSingBox.git
+cd CMSingBox
+sudo env CMSINGBOX_LICENSE_PASSWORD='Aa666333' sh deploy/license/install-native.sh
+```
+
+### Docker 部署
 
 ```bash
 git clone git@github.com:qwernot/CMSingBox.git
@@ -25,5 +35,5 @@ sudo env CMSINGBOX_LICENSE_PASSWORD='Aa666333' sh deploy/license/install.sh
 - 未授权最多添加 1 条订阅链接。
 - 授权只限制订阅链接数量，不限制订阅内节点数和手动节点数。
 - 客户主程序只保存公钥并进行离线验签；私钥只保存在总授权中心。
-- `deploy/license/license-data/private.key` 必须离线备份，绝不能提交到 GitHub。
+- Docker 私钥位于 `deploy/license/license-data/private.key`，原生私钥位于 `/var/lib/cmsingbox-license/private.key`，必须离线备份，绝不能提交到 GitHub。
 - 更换密钥、同步客户端公钥和重新打包二进制，请严格按照 [授权密钥、更换公钥与客户端打包](licensing.md) 操作。

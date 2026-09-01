@@ -571,8 +571,14 @@ func (b *ConfigBuilder) buildOutbounds() []Outbound {
 		})
 	}
 
-	// 创建主选择器（精简版：只包含分组，不包含单节点）
+	// 创建主选择器（精简版：只包含分组，不包含单节点）。首次安装尚无节点时
+	// 使用 DIRECT 保底，避免引用不存在的 Auto 导致 sing-box 无法启动。
+	proxyDefault := "Auto"
 	proxyOutbounds := []string{"Auto"}
+	if len(allNodeTags) == 0 {
+		proxyDefault = "DIRECT"
+		proxyOutbounds = []string{"DIRECT"}
+	}
 	proxyOutbounds = append(proxyOutbounds, countryGroupTags...) // 添加国家分组
 	proxyOutbounds = append(proxyOutbounds, filterGroupTags...)
 
@@ -580,7 +586,7 @@ func (b *ConfigBuilder) buildOutbounds() []Outbound {
 		"tag":       "Proxy",
 		"type":      "selector",
 		"outbounds": proxyOutbounds,
-		"default":   "Auto",
+		"default":   proxyDefault,
 	})
 
 	// 为启用的规则组创建选择器
@@ -597,7 +603,10 @@ func (b *ConfigBuilder) buildOutbounds() []Outbound {
 			selectorOutbounds = []string{"DIRECT", "REJECT", "Proxy"}
 		} else {
 			// 代理规则组：提供完整选项（但不包含单节点）
-			selectorOutbounds = []string{"Proxy", "Auto", "DIRECT", "REJECT"}
+			selectorOutbounds = []string{"Proxy", "DIRECT", "REJECT"}
+			if len(allNodeTags) > 0 {
+				selectorOutbounds = append(selectorOutbounds, "Auto")
+			}
 			selectorOutbounds = append(selectorOutbounds, countryGroupTags...) // 添加国家分组
 			selectorOutbounds = append(selectorOutbounds, filterGroupTags...)
 		}

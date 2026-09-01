@@ -20,6 +20,8 @@ func main() {
 	switch os.Args[1] {
 	case "keygen":
 		err = keygen(os.Args[2:])
+	case "public":
+		err = exportPublic(os.Args[2:])
 	case "issue":
 		err = issue(os.Args[2:])
 	default:
@@ -33,8 +35,32 @@ func main() {
 
 func usage() {
 	fmt.Fprintln(os.Stderr, "用法: license-tool keygen -private license-private.key -public license-public.key")
+	fmt.Fprintln(os.Stderr, "      license-tool public -private license-private.key -public license-public.key")
 	fmt.Fprintln(os.Stderr, "      license-tool issue -private license-private.key -device 123456 -subscriptions 10 [-expires 2027-12-31] [-id customer-001]")
 	os.Exit(2)
+}
+
+func exportPublic(args []string) error {
+	fs := flag.NewFlagSet("public", flag.ContinueOnError)
+	privatePath := fs.String("private", "license-private.key", "现有私钥路径")
+	publicPath := fs.String("public", "license-public.key", "公钥输出路径")
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+	raw, err := os.ReadFile(*privatePath)
+	if err != nil {
+		return err
+	}
+	privateKey, err := licensing.ParsePrivateKey(string(raw))
+	if err != nil {
+		return err
+	}
+	publicKey := ed25519.PrivateKey(privateKey).Public().(ed25519.PublicKey)
+	if err := writeExclusive(*publicPath, []byte(base64.StdEncoding.EncodeToString(publicKey)+"\n"), 0644); err != nil {
+		return fmt.Errorf("写入公钥失败: %w", err)
+	}
+	fmt.Println("公钥:", base64.StdEncoding.EncodeToString(publicKey))
+	return nil
 }
 
 func keygen(args []string) error {
