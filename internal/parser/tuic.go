@@ -5,7 +5,7 @@ import (
 	"net/url"
 	"strings"
 
-	"github.com/xiaobei/singbox-manager/internal/storage"
+	"cmsingbox.local/cmsingbox/internal/storage"
 )
 
 // TuicParser TUIC 解析器

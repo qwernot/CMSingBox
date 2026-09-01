@@ -94,9 +94,35 @@ export interface Settings {
   mixed_port: number;
   tun_enabled: boolean;
   allow_lan: boolean;              // 允许局域网访问
+  mixed_auth_enabled: boolean;
+  mixed_username: string;
+  mixed_password: string;
   proxy_dns: string;
   direct_dns: string;
   hosts?: HostEntry[];           // DNS hosts 映射
+  dns_enabled: boolean;
+  dns_listen: string;
+  dns_proxy_upstream: string;
+  dns_direct_upstream: string;
+  dns_routing_mode: string;
+  dns_exceptions: string[];
+  fakeip_range: string;
+  log_enabled: boolean;
+  log_level: string;
+  log_timestamp: boolean;
+  log_path: string;
+  extra_inbounds: Record<string, unknown>[];
+  extra_outbounds: Record<string, unknown>[];
+  transparent_proxy: boolean;
+  tproxy_port: number;
+  bypass_cidrs: string[];
+  client_config_path: string;
+  backhome_enabled: boolean;
+  backhome_server: string;
+  backhome_port: number;
+  backhome_password: string;
+  backhome_cert_path: string;
+  backhome_key_path: string;
   web_port: number;
   clash_api_port: number;
   clash_ui_path: string;
@@ -124,6 +150,22 @@ export interface ProcessStats {
 export interface SystemInfo {
   sbm?: ProcessStats;
   singbox?: ProcessStats;
+  host?: {
+    hostname: string;
+    ip_address: string;
+    os: string;
+    platform: string;
+    architecture: string;
+    uptime: number;
+    cpu_model: string;
+    cpu_percent: number;
+    memory_percent: number;
+    memory_total: number;
+    disk_percent: number;
+    disk_total: number;
+    network_up_bps: number;
+    network_down_bps: number;
+  };
 }
 
 interface AppState {

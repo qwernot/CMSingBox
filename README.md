@@ -1,4 +1,22 @@
-# singbox-manager
+# CMSingBox
+
+## Docker 一键部署
+
+CMSingBox 主程序（不包含授权中心）：
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/qwernot/CMSingBox/main/install.sh | sudo sh
+```
+
+安装后访问 `http://小主机或服务器IP:9092`，初始账号与密码均为 `admin`。首次登录后请立即修改密码，并按需开启“允许局域网访问”。默认使用 Docker Host 网络，局域网设备直接填写小主机本身的 IP，无需填写 Docker IP。
+
+授权中心只供授权管理员单独部署，不包含在普通安装命令中：
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/qwernot/CMSingBox/main/install-license.sh | sudo env CMSINGBOX_LICENSE_PASSWORD='请改成至少8位强密码' sh
+```
+
+授权私钥保存在授权服务器的 `license-data` 目录，禁止提交仓库并必须离线备份。详见部署后的 `/docs/user` 与 `/docs/admin` 网页文档。
 
 [English](#english) | [中文](#中文)
 
@@ -9,6 +27,8 @@
 ## English
 
 A modern web-based management panel for [sing-box](https://github.com/SagerNet/sing-box), providing an intuitive interface to manage subscriptions, rules, filters, and more.
+
+> This fork adds authenticated administration, configuration backup/restore, full host monitoring, DNS source-IP routing and observability, advanced Sing-box JSON extensions, client configuration links, and nftables TProxy management. See [Architecture and deployment](docs/architecture.md).
 
 ### Features
 
@@ -74,14 +94,13 @@ A modern web-based management panel for [sing-box](https://github.com/SagerNet/s
 
 #### Pre-built Binaries
 
-Download from [Releases](https://github.com/williamnie/singbox-manager/releases) page.
+Use the internally built CMSingBox release artifact.
 
 #### Build from Source
 
 ```bash
 # Clone the repository
-git clone https://github.com/williamnie/singbox-manager.git
-cd singbox-manager
+cd CMSingBox
 
 # Build for all platforms
 ./build.sh all
@@ -106,16 +125,16 @@ cd singbox-manager
 
 ```bash
 # Basic usage
-./sbm
+./cmsingbox
 
 # Custom data directory and port
-./sbm -data ~/.singbox-manager -port 9090
+./cmsingbox -data ~/.cmsingbox -port 9090
 ```
 
 **Command Line Options:**
 | Option | Default | Description |
 |--------|---------|-------------|
-| `-data` | `~/.singbox-manager` | Data directory path |
+| `-data` | `~/.cmsingbox` | Data directory path |
 | `-port` | `9090` | Web server port |
 
 After starting, open `http://localhost:9090` in your browser.
@@ -124,7 +143,7 @@ After starting, open `http://localhost:9090` in your browser.
 
 **Data Directory Structure:**
 ```
-~/.singbox-manager/
+~/.cmsingbox/
 ├── data.json           # Configuration data
 ├── generated/
 │   └── config.json     # Generated sing-box config
@@ -150,7 +169,7 @@ After starting, open `http://localhost:9090` in your browser.
 
 ### License
 
-MIT License
+Proprietary software. All rights reserved by the CMSingBox owner. No permission is granted to copy, redistribute, sublicense, or create derivative distributions without written authorization.
 
 ---
 
@@ -159,6 +178,8 @@ MIT License
 ## 中文
 
 一个现代化的 [sing-box](https://github.com/SagerNet/sing-box) Web 管理面板，提供直观的界面来管理订阅、规则、过滤器等。
+
+> 当前版本新增后台认证、备份恢复、完整主机监控、DNS 来源 IP 分流与监控、高级 Sing-box JSON 扩展、手机客户端配置链接和 nftables TProxy 管理。部署方式见 [架构与部署](docs/architecture.md)。
 
 ### 功能特性
 
@@ -224,14 +245,13 @@ MIT License
 
 #### 预编译二进制文件
 
-从 [Releases](https://github.com/williamnie/singbox-manager/releases) 页面下载。
+使用内部构建并签名的 CMSingBox 发布产物。
 
 #### 从源码构建
 
 ```bash
 # 克隆仓库
-git clone https://github.com/williamnie/singbox-manager.git
-cd singbox-manager
+cd CMSingBox
 
 # 构建所有平台
 ./build.sh all
@@ -256,16 +276,16 @@ cd singbox-manager
 
 ```bash
 # 基本用法
-./sbm
+./cmsingbox
 
 # 自定义数据目录和端口
-./sbm -data ~/.singbox-manager -port 9090
+./cmsingbox -data ~/.cmsingbox -port 9090
 ```
 
 **命令行参数：**
 | 参数 | 默认值 | 说明 |
 |------|--------|------|
-| `-data` | `~/.singbox-manager` | 数据目录路径 |
+| `-data` | `~/.cmsingbox` | 数据目录路径 |
 | `-port` | `9090` | Web 服务端口 |
 
 启动后，在浏览器中打开 `http://localhost:9090`。
@@ -274,7 +294,7 @@ cd singbox-manager
 
 **数据目录结构：**
 ```
-~/.singbox-manager/
+~/.cmsingbox/
 ├── data.json           # 配置数据
 ├── generated/
 │   └── config.json     # 生成的 sing-box 配置
@@ -298,6 +318,6 @@ cd singbox-manager
 - Node.js 18+（用于构建前端）
 - sing-box（可自动下载或手动安装）
 
-### 许可证
+### 授权与分发
 
-MIT License
+本分支按私有、闭源产品维护，新增代码不对外授予开源许可。源自上游项目及其他第三方组件的代码仍分别遵循其原有许可证和版权声明；闭源分发时也必须保留这些法定声明。软件授权的生成、构建与签发流程见 [私有离线授权](docs/licensing.md)。

@@ -1,6 +1,10 @@
 package storage
 
-import "time"
+import (
+	"crypto/rand"
+	"encoding/hex"
+	"time"
+)
 
 // Subscription 订阅
 type Subscription struct {
@@ -25,7 +29,7 @@ type Traffic struct {
 // Node 节点
 type Node struct {
 	Tag          string                 `json:"tag"`
-	Type         string                 `json:"type"`                    // shadowsocks/vmess/vless/trojan/hysteria2/tuic
+	Type         string                 `json:"type"` // shadowsocks/vmess/vless/trojan/hysteria2/tuic
 	Server       string                 `json:"server"`
 	ServerPort   int                    `json:"server_port"`
 	Extra        map[string]interface{} `json:"extra,omitempty"`         // 协议特定字段
@@ -78,7 +82,7 @@ type Rule struct {
 	Values   []string `json:"values"`    // 规则值列表
 	Outbound string   `json:"outbound"`  // 目标出站
 	Enabled  bool     `json:"enabled"`
-	Priority int      `json:"priority"`  // 优先级 (越小越优先)
+	Priority int      `json:"priority"` // 优先级 (越小越优先)
 }
 
 // RuleGroup 预设规则组
@@ -106,20 +110,46 @@ type Settings struct {
 	ConfigPath  string `json:"config_path"`
 
 	// 入站配置
-	MixedPort  int  `json:"mixed_port"`  // HTTP/SOCKS5 混合端口
-	TunEnabled bool `json:"tun_enabled"` // TUN 模式
-	AllowLAN   bool `json:"allow_lan"`   // 允许局域网访问
+	MixedPort        int    `json:"mixed_port"`         // HTTP/SOCKS5 混合端口
+	TunEnabled       bool   `json:"tun_enabled"`        // TUN 模式
+	AllowLAN         bool   `json:"allow_lan"`          // 允许局域网/公网访问
+	MixedAuthEnabled bool   `json:"mixed_auth_enabled"` // HTTP/SOCKS5 是否启用认证
+	MixedUsername    string `json:"mixed_username"`     // HTTP/SOCKS5 用户名
+	MixedPassword    string `json:"mixed_password"`     // HTTP/SOCKS5 密码
 
 	// DNS 配置
-	ProxyDNS  string      `json:"proxy_dns"`        // 代理 DNS
-	DirectDNS string      `json:"direct_dns"`       // 直连 DNS
-	Hosts     []HostEntry `json:"hosts,omitempty"`  // DNS hosts 映射
+	ProxyDNS          string                   `json:"proxy_dns"`       // 代理 DNS
+	DirectDNS         string                   `json:"direct_dns"`      // 直连 DNS
+	Hosts             []HostEntry              `json:"hosts,omitempty"` // DNS hosts 映射
+	DNSEnabled        bool                     `json:"dns_enabled"`
+	DNSListen         string                   `json:"dns_listen"`
+	DNSProxyUpstream  string                   `json:"dns_proxy_upstream"`
+	DNSDirectUpstream string                   `json:"dns_direct_upstream"`
+	DNSRoutingMode    string                   `json:"dns_routing_mode"`
+	DNSExceptions     []string                 `json:"dns_exceptions"`
+	FakeIPRange       string                   `json:"fakeip_range"`
+	LogEnabled        bool                     `json:"log_enabled"`
+	LogLevel          string                   `json:"log_level"`
+	LogTimestamp      bool                     `json:"log_timestamp"`
+	LogPath           string                   `json:"log_path"`
+	ExtraInbounds     []map[string]interface{} `json:"extra_inbounds"`
+	ExtraOutbounds    []map[string]interface{} `json:"extra_outbounds"`
+	TransparentProxy  bool                     `json:"transparent_proxy"`
+	TProxyPort        int                      `json:"tproxy_port"`
+	BypassCIDRs       []string                 `json:"bypass_cidrs"`
+	ClientConfigPath  string                   `json:"client_config_path"`
+	BackHomeEnabled   bool                     `json:"backhome_enabled"`
+	BackHomeServer    string                   `json:"backhome_server"`
+	BackHomePort      int                      `json:"backhome_port"`
+	BackHomePassword  string                   `json:"backhome_password"`
+	BackHomeCertPath  string                   `json:"backhome_cert_path"`
+	BackHomeKeyPath   string                   `json:"backhome_key_path"`
 
 	// 控制面板
-	WebPort        int    `json:"web_port"`          // 管理界面端口
-	ClashAPIPort   int    `json:"clash_api_port"`    // Clash API 端口
-	ClashUIPath    string `json:"clash_ui_path"`     // zashboard 路径
-	ClashAPISecret string `json:"clash_api_secret"`  // ClashAPI 密钥
+	WebPort        int    `json:"web_port"`         // 管理界面端口
+	ClashAPIPort   int    `json:"clash_api_port"`   // Clash API 端口
+	ClashUIPath    string `json:"clash_ui_path"`    // zashboard 路径
+	ClashAPISecret string `json:"clash_api_secret"` // ClashAPI 密钥
 
 	// 漏网规则
 	FinalOutbound string `json:"final_outbound"` // 默认出站
@@ -135,6 +165,12 @@ type Settings struct {
 	GithubProxy string `json:"github_proxy"` // GitHub 代理地址，如 https://ghproxy.com/
 }
 
+// AuthConfig 保存管理后台认证信息。密码只保存 bcrypt 哈希。
+type AuthConfig struct {
+	Username     string `json:"username"`
+	PasswordHash string `json:"password_hash"`
+}
+
 // DefaultSettings 默认设置
 func DefaultSettings() *Settings {
 	return &Settings{
@@ -143,8 +179,26 @@ func DefaultSettings() *Settings {
 		MixedPort:            2080,
 		TunEnabled:           true,
 		AllowLAN:             false, // 默认不允许局域网访问
+		MixedUsername:        "cmsingbox",
 		ProxyDNS:             "https://1.1.1.1/dns-query",
 		DirectDNS:            "https://dns.alidns.com/dns-query",
+		DNSEnabled:           false,
+		DNSListen:            "0.0.0.0:53",
+		DNSProxyUpstream:     "127.0.0.1:1053",
+		DNSDirectUpstream:    "223.5.5.5:53",
+		DNSRoutingMode:       "default_proxy",
+		DNSExceptions:        []string{},
+		FakeIPRange:          "198.18.0.0/15",
+		LogEnabled:           true,
+		LogLevel:             "info",
+		LogTimestamp:         true,
+		ExtraInbounds:        []map[string]interface{}{},
+		ExtraOutbounds:       []map[string]interface{}{},
+		TransparentProxy:     false,
+		TProxyPort:           7893,
+		BypassCIDRs:          []string{"0.0.0.0/8", "10.0.0.0/8", "127.0.0.0/8", "169.254.0.0/16", "172.16.0.0/12", "192.168.0.0/16", "224.0.0.0/4"},
+		ClientConfigPath:     randomClientPath(),
+		BackHomePort:         8443,
 		WebPort:              9090,
 		ClashAPIPort:         9091,
 		ClashUIPath:          "zashboard",
@@ -157,6 +211,14 @@ func DefaultSettings() *Settings {
 	}
 }
 
+func randomClientPath() string {
+	buffer := make([]byte, 12)
+	if _, err := rand.Read(buffer); err != nil {
+		return "change-this-client-path"
+	}
+	return hex.EncodeToString(buffer)
+}
+
 // AppData 应用数据
 type AppData struct {
 	Subscriptions []Subscription `json:"subscriptions"`
@@ -165,6 +227,7 @@ type AppData struct {
 	Rules         []Rule         `json:"rules"`
 	RuleGroups    []RuleGroup    `json:"rule_groups"`
 	Settings      *Settings      `json:"settings"`
+	Auth          *AuthConfig    `json:"auth"`
 }
 
 // DefaultRuleGroups 默认规则组
@@ -188,96 +251,96 @@ func DefaultRuleGroups() []RuleGroup {
 
 // CountryNames 国家代码到中文名称的映射
 var CountryNames = map[string]string{
-	"HK": "香港",
-	"TW": "台湾",
-	"JP": "日本",
-	"KR": "韩国",
-	"SG": "新加坡",
-	"US": "美国",
-	"GB": "英国",
-	"DE": "德国",
-	"FR": "法国",
-	"NL": "荷兰",
-	"AU": "澳大利亚",
-	"CA": "加拿大",
-	"RU": "俄罗斯",
-	"IN": "印度",
-	"BR": "巴西",
-	"AR": "阿根廷",
-	"TR": "土耳其",
-	"TH": "泰国",
-	"VN": "越南",
-	"MY": "马来西亚",
-	"PH": "菲律宾",
-	"ID": "印尼",
-	"AE": "阿联酋",
-	"ZA": "南非",
-	"CH": "瑞士",
-	"IT": "意大利",
-	"ES": "西班牙",
-	"SE": "瑞典",
-	"NO": "挪威",
-	"FI": "芬兰",
-	"DK": "丹麦",
-	"PL": "波兰",
-	"CZ": "捷克",
-	"AT": "奥地利",
-	"IE": "爱尔兰",
-	"PT": "葡萄牙",
-	"GR": "希腊",
-	"IL": "以色列",
-	"MX": "墨西哥",
-	"CL": "智利",
-	"CO": "哥伦比亚",
-	"PE": "秘鲁",
+	"HK":    "香港",
+	"TW":    "台湾",
+	"JP":    "日本",
+	"KR":    "韩国",
+	"SG":    "新加坡",
+	"US":    "美国",
+	"GB":    "英国",
+	"DE":    "德国",
+	"FR":    "法国",
+	"NL":    "荷兰",
+	"AU":    "澳大利亚",
+	"CA":    "加拿大",
+	"RU":    "俄罗斯",
+	"IN":    "印度",
+	"BR":    "巴西",
+	"AR":    "阿根廷",
+	"TR":    "土耳其",
+	"TH":    "泰国",
+	"VN":    "越南",
+	"MY":    "马来西亚",
+	"PH":    "菲律宾",
+	"ID":    "印尼",
+	"AE":    "阿联酋",
+	"ZA":    "南非",
+	"CH":    "瑞士",
+	"IT":    "意大利",
+	"ES":    "西班牙",
+	"SE":    "瑞典",
+	"NO":    "挪威",
+	"FI":    "芬兰",
+	"DK":    "丹麦",
+	"PL":    "波兰",
+	"CZ":    "捷克",
+	"AT":    "奥地利",
+	"IE":    "爱尔兰",
+	"PT":    "葡萄牙",
+	"GR":    "希腊",
+	"IL":    "以色列",
+	"MX":    "墨西哥",
+	"CL":    "智利",
+	"CO":    "哥伦比亚",
+	"PE":    "秘鲁",
 	"NZ":    "新西兰",
 	"OTHER": "其他",
 }
 
 // CountryEmojis 国家代码到 emoji 的映射
 var CountryEmojis = map[string]string{
-	"HK": "🇭🇰",
-	"TW": "🇹🇼",
-	"JP": "🇯🇵",
-	"KR": "🇰🇷",
-	"SG": "🇸🇬",
-	"US": "🇺🇸",
-	"GB": "🇬🇧",
-	"DE": "🇩🇪",
-	"FR": "🇫🇷",
-	"NL": "🇳🇱",
-	"AU": "🇦🇺",
-	"CA": "🇨🇦",
-	"RU": "🇷🇺",
-	"IN": "🇮🇳",
-	"BR": "🇧🇷",
-	"AR": "🇦🇷",
-	"TR": "🇹🇷",
-	"TH": "🇹🇭",
-	"VN": "🇻🇳",
-	"MY": "🇲🇾",
-	"PH": "🇵🇭",
-	"ID": "🇮🇩",
-	"AE": "🇦🇪",
-	"ZA": "🇿🇦",
-	"CH": "🇨🇭",
-	"IT": "🇮🇹",
-	"ES": "🇪🇸",
-	"SE": "🇸🇪",
-	"NO": "🇳🇴",
-	"FI": "🇫🇮",
-	"DK": "🇩🇰",
-	"PL": "🇵🇱",
-	"CZ": "🇨🇿",
-	"AT": "🇦🇹",
-	"IE": "🇮🇪",
-	"PT": "🇵🇹",
-	"GR": "🇬🇷",
-	"IL": "🇮🇱",
-	"MX": "🇲🇽",
-	"CL": "🇨🇱",
-	"CO": "🇨🇴",
-	"PE": "🇵🇪",
+	"HK":    "🇭🇰",
+	"TW":    "🇹🇼",
+	"JP":    "🇯🇵",
+	"KR":    "🇰🇷",
+	"SG":    "🇸🇬",
+	"US":    "🇺🇸",
+	"GB":    "🇬🇧",
+	"DE":    "🇩🇪",
+	"FR":    "🇫🇷",
+	"NL":    "🇳🇱",
+	"AU":    "🇦🇺",
+	"CA":    "🇨🇦",
+	"RU":    "🇷🇺",
+	"IN":    "🇮🇳",
+	"BR":    "🇧🇷",
+	"AR":    "🇦🇷",
+	"TR":    "🇹🇷",
+	"TH":    "🇹🇭",
+	"VN":    "🇻🇳",
+	"MY":    "🇲🇾",
+	"PH":    "🇵🇭",
+	"ID":    "🇮🇩",
+	"AE":    "🇦🇪",
+	"ZA":    "🇿🇦",
+	"CH":    "🇨🇭",
+	"IT":    "🇮🇹",
+	"ES":    "🇪🇸",
+	"SE":    "🇸🇪",
+	"NO":    "🇳🇴",
+	"FI":    "🇫🇮",
+	"DK":    "🇩🇰",
+	"PL":    "🇵🇱",
+	"CZ":    "🇨🇿",
+	"AT":    "🇦🇹",
+	"IE":    "🇮🇪",
+	"PT":    "🇵🇹",
+	"GR":    "🇬🇷",
+	"IL":    "🇮🇱",
+	"MX":    "🇲🇽",
+	"CL":    "🇨🇱",
+	"CO":    "🇨🇴",
+	"PE":    "🇵🇪",
 	"NZ":    "🇳🇿",
 	"OTHER": "🌐",
 }

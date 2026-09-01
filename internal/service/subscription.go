@@ -4,10 +4,10 @@ import (
 	"fmt"
 	"time"
 
+	"cmsingbox.local/cmsingbox/internal/parser"
+	"cmsingbox.local/cmsingbox/internal/storage"
+	"cmsingbox.local/cmsingbox/pkg/utils"
 	"github.com/google/uuid"
-	"github.com/xiaobei/singbox-manager/internal/parser"
-	"github.com/xiaobei/singbox-manager/internal/storage"
-	"github.com/xiaobei/singbox-manager/pkg/utils"
 )
 
 // SubscriptionService 订阅服务
@@ -34,6 +34,10 @@ func (s *SubscriptionService) Get(id string) *storage.Subscription {
 
 // Add 添加订阅
 func (s *SubscriptionService) Add(name, url string) (*storage.Subscription, error) {
+	// 在网络请求前快速拒绝超额请求；存储层仍会再次原子校验，避免并发绕过。
+	if err := s.store.CanAddSubscription(); err != nil {
+		return nil, err
+	}
 	sub := storage.Subscription{
 		ID:        uuid.New().String(),
 		Name:      name,

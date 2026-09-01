@@ -12,7 +12,7 @@ import (
 )
 
 const systemdTemplate = `[Unit]
-Description=SingBox Manager
+Description=CMSingBox
 After=network.target
 
 [Service]
@@ -54,7 +54,7 @@ func NewSystemdManager() (*SystemdManager, error) {
 		return nil, fmt.Errorf("systemd 仅在 Linux 上支持")
 	}
 
-	serviceName := "singbox-manager.service"
+	serviceName := "cmsingbox.service"
 	homeDir, err := getUserHomeDir()
 	if err != nil {
 		return nil, fmt.Errorf("获取用户目录失败: %w", err)

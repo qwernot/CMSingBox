@@ -9,3 +9,12 @@ web/dist/*
 .claude/config.json
 data/
 data/*
+license-private.key
+license-public.key
+*.license.key
+license-data/
+.env
+.env.*
+docs/.render-*/
+docs/*.docx
+docs/generate_manuals.py

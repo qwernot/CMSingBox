@@ -84,14 +84,22 @@ export default function Dashboard() {
 
   const totalNodes = subscriptions.reduce((sum, sub) => sum + sub.node_count, 0);
   const enabledSubs = subscriptions.filter(sub => sub.enabled).length;
+  const formatRate = (value = 0) => value >= 1024 * 1024 ? `${(value / 1024 / 1024).toFixed(1)} MB/s` : `${(value / 1024).toFixed(1)} KB/s`;
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-bold text-gray-800 dark:text-white">仪表盘</h1>
+      <div><p className="text-sm font-medium text-blue-600">系统总览</p><h1 className="mt-1 text-2xl font-bold tracking-tight text-slate-900 dark:text-white sm:text-3xl">欢迎使用 CMSingBox</h1><p className="mt-1 text-sm text-slate-500">实时查看服务状态、系统资源与订阅概况</p></div>
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <Card><CardBody><p className="text-sm text-gray-500">主机名</p><p className="text-xl font-bold">{systemInfo?.host?.hostname || '-'}</p><p className="text-xs text-gray-400">{systemInfo?.host?.ip_address || ''}</p></CardBody></Card>
+        <Card><CardBody><p className="text-sm text-gray-500">CPU 使用率</p><p className="text-xl font-bold">{systemInfo?.host?.cpu_percent?.toFixed(1) || '0.0'}%</p><p className="text-xs text-gray-400 truncate">{systemInfo?.host?.cpu_model || ''}</p></CardBody></Card>
+        <Card><CardBody><p className="text-sm text-gray-500">内存 / 磁盘</p><p className="text-xl font-bold">{systemInfo?.host?.memory_percent?.toFixed(1) || '0.0'}% / {systemInfo?.host?.disk_percent?.toFixed(1) || '0.0'}%</p><p className="text-xs text-gray-400">系统资源使用率</p></CardBody></Card>
+        <Card><CardBody><p className="text-sm text-gray-500">网络传输</p><p className="font-bold text-emerald-600">↑ {formatRate(systemInfo?.host?.network_up_bps)}</p><p className="font-bold text-blue-600">↓ {formatRate(systemInfo?.host?.network_down_bps)}</p></CardBody></Card>
+      </div>
 
       {/* 服务状态卡片 */}
-      <Card>
-        <CardHeader className="flex justify-between items-center">
+      <Card className="border border-slate-200/70 shadow-sm dark:border-slate-800">
+        <CardHeader className="flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-center">
           <div className="flex items-center gap-3">
             <h2 className="text-lg font-semibold">sing-box 服务</h2>
             <Chip
@@ -102,7 +110,7 @@ export default function Dashboard() {
               {serviceStatus?.running ? '运行中' : '已停止'}
             </Chip>
           </div>
-          <div className="flex gap-2">
+          <div className="flex w-full flex-wrap gap-2 sm:w-auto">
             {serviceStatus?.running ? (
               <>
                 <Button
@@ -144,7 +152,7 @@ export default function Dashboard() {
           </div>
         </CardHeader>
         <CardBody>
-          <div className="grid grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
             <div>
               <p className="text-sm text-gray-500">版本</p>
               <div className="flex items-center gap-1">
@@ -211,7 +219,7 @@ export default function Dashboard() {
               <Cpu className="w-6 h-6 text-purple-600 dark:text-purple-300" />
             </div>
             <div>
-              <p className="text-sm text-gray-500">sbm 资源</p>
+              <p className="text-sm text-gray-500">CMSingBox 资源</p>
               <p className="text-lg font-bold">
                 {systemInfo?.sbm ? (
                   <>
@@ -263,7 +271,7 @@ export default function Dashboard() {
               {subscriptions.map((sub) => (
                 <div
                   key={sub.id}
-                  className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800 rounded-lg"
+                  className="flex flex-col items-start justify-between gap-2 rounded-lg bg-gray-50 p-3 dark:bg-gray-800 sm:flex-row sm:items-center"
                 >
                   <div className="flex items-center gap-3">
                     <Chip

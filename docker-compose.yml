@@ -1,0 +1,19 @@
+services:
+  cmsingbox:
+    build:
+      context: .
+      args:
+        VERSION: ${CMSINGBOX_VERSION:-latest}
+        LICENSE_PUBLIC_KEY: ${CMSINGBOX_LICENSE_PUBLIC_KEY:-tmySfFXNcgxWTfs5MLotrluSbEza8oDx9tSBkXoA4Dw=}
+        FREE_SUBSCRIPTION_LIMIT: ${CMSINGBOX_FREE_SUBSCRIPTION_LIMIT:-1}
+    container_name: cmsingbox
+    restart: unless-stopped
+    # 使用小主机自己的局域网 IP，不创建额外 Docker IP。
+    network_mode: host
+    privileged: true
+    devices:
+      - /dev/net/tun:/dev/net/tun
+    volumes:
+      - ./data:/data
+    environment:
+      - TZ=Asia/Shanghai

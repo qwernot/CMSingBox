@@ -1,0 +1,14 @@
+services:
+  cmsingbox-license:
+    build:
+      context: .
+      dockerfile: Dockerfile.license
+    container_name: cmsingbox-license
+    restart: unless-stopped
+    ports:
+      - "${CMSINGBOX_LICENSE_PORT:-9093}:9093"
+    environment:
+      CMSINGBOX_LICENSE_PASSWORD_HASH: ${CMSINGBOX_LICENSE_PASSWORD_HASH:?请先运行 install-license.sh 生成环境配置}
+      TZ: Asia/Shanghai
+    volumes:
+      - ./license-data:/license

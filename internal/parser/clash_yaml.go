@@ -5,8 +5,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/xiaobei/singbox-manager/internal/storage"
-	"github.com/xiaobei/singbox-manager/pkg/utils"
+	"cmsingbox.local/cmsingbox/internal/storage"
+	"cmsingbox.local/cmsingbox/pkg/utils"
 	"gopkg.in/yaml.v3"
 )
 

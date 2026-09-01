@@ -5,25 +5,29 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
 
-	"github.com/xiaobei/singbox-manager/internal/api"
-	"github.com/xiaobei/singbox-manager/internal/daemon"
-	"github.com/xiaobei/singbox-manager/internal/logger"
-	"github.com/xiaobei/singbox-manager/internal/storage"
+	"cmsingbox.local/cmsingbox/internal/api"
+	"cmsingbox.local/cmsingbox/internal/daemon"
+	"cmsingbox.local/cmsingbox/internal/licensing"
+	"cmsingbox.local/cmsingbox/internal/logger"
+	"cmsingbox.local/cmsingbox/internal/storage"
 )
 
 var (
-	Version   = "0.2.13"
-	BuildTime = "unknown"
-	GitCommit = "unknown"
-	dataDir   string
-	port      int
+	Version               = "0.2.13"
+	BuildTime             = "unknown"
+	GitCommit             = "unknown"
+	LicensePublicKey      = ""
+	FreeSubscriptionLimit = "1"
+	dataDir               string
+	port                  int
 )
 
 func init() {
 	// 获取默认数据目录
 	homeDir, _ := os.UserHomeDir()
-	defaultDataDir := filepath.Join(homeDir, ".singbox-manager")
+	defaultDataDir := filepath.Join(homeDir, ".cmsingbox")
 
 	flag.StringVar(&dataDir, "data", defaultDataDir, "数据目录")
 	flag.IntVar(&port, "port", 9090, "Web 服务端口")
@@ -55,7 +59,7 @@ func main() {
 	}
 
 	// 打印启动信息
-	logger.Printf("singbox-manager v%s", Version)
+	logger.Printf("CMSingBox v%s", Version)
 	logger.Printf("数据目录: %s", dataDir)
 	logger.Printf("Web 端口: %d", port)
 
@@ -65,6 +69,17 @@ func main() {
 		logger.Printf("初始化存储失败: %v", err)
 		os.Exit(1)
 	}
+	freeLimit, err := strconv.Atoi(FreeSubscriptionLimit)
+	if err != nil || freeLimit < 0 {
+		logger.Printf("免费订阅额度配置无效: %q", FreeSubscriptionLimit)
+		os.Exit(1)
+	}
+	licenseManager, err := licensing.NewManager(dataDir, LicensePublicKey, freeLimit)
+	if err != nil {
+		logger.Printf("初始化授权模块失败: %v", err)
+		os.Exit(1)
+	}
+	store.SetSubscriptionLimit(licenseManager.Limit())
 
 	// 初始化进程管理器
 	// sing-box 二进制文件路径固定为 dataDir/bin/sing-box
@@ -85,7 +100,7 @@ func main() {
 	}
 
 	// 创建 API 服务器
-	server := api.NewServer(store, processManager, launchdManager, systemdManager, execPath, port, Version)
+	server := api.NewServer(store, processManager, launchdManager, systemdManager, execPath, port, Version, licenseManager)
 
 	// 启动定时任务调度器
 	server.StartScheduler()

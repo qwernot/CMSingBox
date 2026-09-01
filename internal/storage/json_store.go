@@ -1,24 +1,42 @@
 package storage
 
 import (
+	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
 	"sync"
+
+	"golang.org/x/crypto/bcrypt"
 )
+
+const defaultAdminPassword = "admin"
+
+var ErrSubscriptionLimitExceeded = errors.New("订阅链接数量已达到授权上限")
+
+func defaultAuthConfig() (*AuthConfig, error) {
+	hash, err := bcrypt.GenerateFromPassword([]byte(defaultAdminPassword), bcrypt.DefaultCost)
+	if err != nil {
+		return nil, fmt.Errorf("生成默认密码哈希失败: %w", err)
+	}
+	return &AuthConfig{Username: "admin", PasswordHash: string(hash)}, nil
+}
 
 // JSONStore JSON 文件存储实现
 type JSONStore struct {
-	dataDir string
-	mu      sync.RWMutex
-	data    *AppData
+	dataDir           string
+	mu                sync.RWMutex
+	data              *AppData
+	subscriptionLimit int
 }
 
 // NewJSONStore 创建新的 JSON 存储
 func NewJSONStore(dataDir string) (*JSONStore, error) {
 	store := &JSONStore{
-		dataDir: dataDir,
+		dataDir:           dataDir,
+		subscriptionLimit: 1,
 	}
 
 	// 确保数据目录存在
@@ -49,6 +67,10 @@ func (s *JSONStore) load() error {
 
 	// 如果文件不存在，初始化默认数据
 	if _, err := os.Stat(dataFile); os.IsNotExist(err) {
+		auth, err := defaultAuthConfig()
+		if err != nil {
+			return err
+		}
 		s.data = &AppData{
 			Subscriptions: []Subscription{},
 			ManualNodes:   []ManualNode{},
@@ -56,6 +78,7 @@ func (s *JSONStore) load() error {
 			Rules:         []Rule{},
 			RuleGroups:    DefaultRuleGroups(),
 			Settings:      DefaultSettings(),
+			Auth:          auth,
 		}
 		return s.saveInternal()
 	}
@@ -83,6 +106,54 @@ func (s *JSONStore) load() error {
 
 	// 迁移旧的路径格式（移除多余的 data/ 前缀）
 	needSave := false
+	// v1.0.5 之前没有独立的认证开关。已有代理凭据表示原配置启用了认证；
+	// 仅在字段完全缺失时迁移，避免用户明确关闭后重启又被自动打开。
+	if !bytes.Contains(data, []byte(`"mixed_auth_enabled"`)) {
+		s.data.Settings.MixedAuthEnabled = s.data.Settings.MixedUsername != "" && s.data.Settings.MixedPassword != ""
+		needSave = true
+	}
+	if s.data.Auth == nil || s.data.Auth.Username == "" || s.data.Auth.PasswordHash == "" {
+		auth, err := defaultAuthConfig()
+		if err != nil {
+			return err
+		}
+		s.data.Auth = auth
+		needSave = true
+	}
+	if s.data.Settings.DNSListen == "" {
+		s.data.Settings.DNSListen = "0.0.0.0:53"
+		s.data.Settings.DNSProxyUpstream = "127.0.0.1:1053"
+		s.data.Settings.DNSDirectUpstream = "223.5.5.5:53"
+		s.data.Settings.DNSRoutingMode = "default_proxy"
+		s.data.Settings.DNSExceptions = []string{}
+		needSave = true
+	}
+	if s.data.Settings.DNSListen == "0.0.0.0:5353" || s.data.Settings.DNSListen == ":5353" {
+		s.data.Settings.DNSListen = "0.0.0.0:53"
+		needSave = true
+	}
+	if s.data.Settings.FakeIPRange == "" {
+		s.data.Settings.FakeIPRange = "198.18.0.0/15"
+		s.data.Settings.LogEnabled = true
+		s.data.Settings.LogLevel = "info"
+		s.data.Settings.LogTimestamp = true
+		s.data.Settings.ExtraInbounds = []map[string]interface{}{}
+		s.data.Settings.ExtraOutbounds = []map[string]interface{}{}
+		needSave = true
+	}
+	if s.data.Settings.TProxyPort == 0 {
+		s.data.Settings.TProxyPort = 7893
+		s.data.Settings.BypassCIDRs = []string{"0.0.0.0/8", "10.0.0.0/8", "127.0.0.0/8", "169.254.0.0/16", "172.16.0.0/12", "192.168.0.0/16", "224.0.0.0/4"}
+		needSave = true
+	}
+	if s.data.Settings.ClientConfigPath == "" {
+		s.data.Settings.ClientConfigPath = randomClientPath()
+		needSave = true
+	}
+	if s.data.Settings.BackHomePort == 0 {
+		s.data.Settings.BackHomePort = 8443
+		needSave = true
+	}
 	if s.data.Settings.SingBoxPath == "data/bin/sing-box" {
 		s.data.Settings.SingBoxPath = "bin/sing-box"
 		needSave = true
@@ -107,10 +178,80 @@ func (s *JSONStore) saveInternal() error {
 		return fmt.Errorf("序列化数据失败: %w", err)
 	}
 
-	if err := os.WriteFile(dataFile, data, 0644); err != nil {
-		return fmt.Errorf("写入数据文件失败: %w", err)
+	tempFile, err := os.CreateTemp(s.dataDir, "data-*.tmp")
+	if err != nil {
+		return fmt.Errorf("创建临时数据文件失败: %w", err)
+	}
+	tempName := tempFile.Name()
+	defer os.Remove(tempName)
+	if err := tempFile.Chmod(0600); err != nil {
+		tempFile.Close()
+		return fmt.Errorf("设置数据文件权限失败: %w", err)
+	}
+	if _, err := tempFile.Write(data); err != nil {
+		tempFile.Close()
+		return fmt.Errorf("写入临时数据文件失败: %w", err)
+	}
+	if err := tempFile.Sync(); err != nil {
+		tempFile.Close()
+		return fmt.Errorf("同步数据文件失败: %w", err)
+	}
+	if err := tempFile.Close(); err != nil {
+		return fmt.Errorf("关闭数据文件失败: %w", err)
+	}
+	if err := os.Rename(tempName, dataFile); err != nil {
+		return fmt.Errorf("替换数据文件失败: %w", err)
 	}
 
+	return nil
+}
+
+// ExportConfiguration 导出不含认证密钥的配置快照。
+func (s *JSONStore) ExportConfiguration() ([]byte, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	copyData := *s.data
+	copyData.Auth = nil
+	return json.MarshalIndent(&copyData, "", "  ")
+}
+
+// RestoreConfiguration 恢复配置快照。认证信息始终保留为当前值。
+func (s *JSONStore) RestoreConfiguration(raw []byte) error {
+	var restored AppData
+	if err := json.Unmarshal(raw, &restored); err != nil {
+		return fmt.Errorf("解析备份数据失败: %w", err)
+	}
+	if restored.Settings == nil {
+		return fmt.Errorf("备份缺少 settings 配置")
+	}
+	if restored.Subscriptions == nil {
+		restored.Subscriptions = []Subscription{}
+	}
+	if restored.ManualNodes == nil {
+		restored.ManualNodes = []ManualNode{}
+	}
+	if restored.Filters == nil {
+		restored.Filters = []Filter{}
+	}
+	if restored.Rules == nil {
+		restored.Rules = []Rule{}
+	}
+	if len(restored.RuleGroups) == 0 {
+		restored.RuleGroups = DefaultRuleGroups()
+	}
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	restored.Auth = s.data.Auth
+	if s.subscriptionLimit >= 0 && len(restored.Subscriptions) > s.subscriptionLimit {
+		return fmt.Errorf("%w：当前允许 %d 条，备份包含 %d 条", ErrSubscriptionLimitExceeded, s.subscriptionLimit, len(restored.Subscriptions))
+	}
+	previous := s.data
+	s.data = &restored
+	if err := s.saveInternal(); err != nil {
+		s.data = previous
+		return err
+	}
 	return nil
 }
 
@@ -127,7 +268,11 @@ func (s *JSONStore) Save() error {
 func (s *JSONStore) GetSubscriptions() []Subscription {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
-	return s.data.Subscriptions
+	result := make([]Subscription, len(s.data.Subscriptions))
+	for i := range s.data.Subscriptions {
+		result[i] = cloneSubscription(s.data.Subscriptions[i])
+	}
+	return result
 }
 
 // GetSubscription 获取单个订阅
@@ -137,7 +282,8 @@ func (s *JSONStore) GetSubscription(id string) *Subscription {
 
 	for i := range s.data.Subscriptions {
 		if s.data.Subscriptions[i].ID == id {
-			return &s.data.Subscriptions[i]
+			result := cloneSubscription(s.data.Subscriptions[i])
+			return &result
 		}
 	}
 	return nil
@@ -148,8 +294,55 @@ func (s *JSONStore) AddSubscription(sub Subscription) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
+	if s.subscriptionLimit >= 0 && len(s.data.Subscriptions) >= s.subscriptionLimit {
+		return fmt.Errorf("%w：当前最多允许 %d 条", ErrSubscriptionLimitExceeded, s.subscriptionLimit)
+	}
 	s.data.Subscriptions = append(s.data.Subscriptions, sub)
 	return s.saveInternal()
+}
+
+// SetSubscriptionLimit 设置可保存的订阅链接上限。小于 0 表示不限制。
+func (s *JSONStore) SetSubscriptionLimit(limit int) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.subscriptionLimit = limit
+}
+
+func (s *JSONStore) SubscriptionUsage() (used, limit int) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return len(s.data.Subscriptions), s.subscriptionLimit
+}
+
+func (s *JSONStore) CanAddSubscription() error {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	if s.subscriptionLimit >= 0 && len(s.data.Subscriptions) >= s.subscriptionLimit {
+		return fmt.Errorf("%w：当前最多允许 %d 条", ErrSubscriptionLimitExceeded, s.subscriptionLimit)
+	}
+	return nil
+}
+
+func cloneSubscription(sub Subscription) Subscription {
+	sub.Nodes = append([]Node(nil), sub.Nodes...)
+	for i := range sub.Nodes {
+		if sub.Nodes[i].Extra != nil {
+			extra := make(map[string]interface{}, len(sub.Nodes[i].Extra))
+			for key, value := range sub.Nodes[i].Extra {
+				extra[key] = value
+			}
+			sub.Nodes[i].Extra = extra
+		}
+	}
+	if sub.Traffic != nil {
+		traffic := *sub.Traffic
+		sub.Traffic = &traffic
+	}
+	if sub.ExpireAt != nil {
+		expireAt := *sub.ExpireAt
+		sub.ExpireAt = &expireAt
+	}
+	return sub
 }
 
 // UpdateSubscription 更新订阅
@@ -323,6 +516,21 @@ func (s *JSONStore) UpdateSettings(settings *Settings) error {
 	defer s.mu.Unlock()
 
 	s.data.Settings = settings
+	return s.saveInternal()
+}
+
+// GetAuthConfig 获取认证配置的副本，避免调用方修改存储中的数据。
+func (s *JSONStore) GetAuthConfig() AuthConfig {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return *s.data.Auth
+}
+
+// UpdateAuthConfig 更新认证配置。
+func (s *JSONStore) UpdateAuthConfig(auth AuthConfig) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.data.Auth = &auth
 	return s.saveInternal()
 }
 

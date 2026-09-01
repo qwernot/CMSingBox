@@ -3,27 +3,39 @@ package api
 import (
 	"crypto/rand"
 	"encoding/hex"
+	"errors"
 	"io/fs"
+	stdnet "net"
 	"net/http"
 	"os"
 	"os/user"
 	"path/filepath"
 	"runtime"
 	"strconv"
+	"sync"
 	"time"
 
+	"cmsingbox.local/cmsingbox/internal/builder"
+	"cmsingbox.local/cmsingbox/internal/daemon"
+	"cmsingbox.local/cmsingbox/internal/dnsproxy"
+	"cmsingbox.local/cmsingbox/internal/firewall"
+	"cmsingbox.local/cmsingbox/internal/kernel"
+	"cmsingbox.local/cmsingbox/internal/licensing"
+	"cmsingbox.local/cmsingbox/internal/logger"
+	"cmsingbox.local/cmsingbox/internal/maintenance"
+	"cmsingbox.local/cmsingbox/internal/parser"
+	"cmsingbox.local/cmsingbox/internal/service"
+	"cmsingbox.local/cmsingbox/internal/storage"
+	"cmsingbox.local/cmsingbox/web"
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+	"github.com/shirou/gopsutil/v3/cpu"
+	"github.com/shirou/gopsutil/v3/disk"
+	"github.com/shirou/gopsutil/v3/host"
+	"github.com/shirou/gopsutil/v3/mem"
+	gnet "github.com/shirou/gopsutil/v3/net"
 	"github.com/shirou/gopsutil/v3/process"
-	"github.com/xiaobei/singbox-manager/internal/builder"
-	"github.com/xiaobei/singbox-manager/internal/daemon"
-	"github.com/xiaobei/singbox-manager/internal/kernel"
-	"github.com/xiaobei/singbox-manager/internal/logger"
-	"github.com/xiaobei/singbox-manager/internal/parser"
-	"github.com/xiaobei/singbox-manager/internal/service"
-	"github.com/xiaobei/singbox-manager/internal/storage"
-	"github.com/xiaobei/singbox-manager/web"
 )
 
 // generateRandomSecret 生成随机密钥
@@ -45,14 +57,24 @@ type Server struct {
 	systemdManager *daemon.SystemdManager
 	kernelManager  *kernel.Manager
 	scheduler      *service.Scheduler
+	dnsService     *dnsproxy.Service
+	firewall       *firewall.Manager
+	cleaner        *maintenance.Cleaner
 	router         *gin.Engine
 	sbmPath        string // sbm 可执行文件路径
 	port           int    // Web 服务端口
 	version        string // sbm 版本号
+	sessions       map[string]time.Time
+	sessionsMu     sync.RWMutex
+	networkMu      sync.Mutex
+	lastNetSent    uint64
+	lastNetRecv    uint64
+	lastNetAt      time.Time
+	license        *licensing.Manager
 }
 
 // NewServer 创建 API 服务器
-func NewServer(store *storage.JSONStore, processManager *daemon.ProcessManager, launchdManager *daemon.LaunchdManager, systemdManager *daemon.SystemdManager, sbmPath string, port int, version string) *Server {
+func NewServer(store *storage.JSONStore, processManager *daemon.ProcessManager, launchdManager *daemon.LaunchdManager, systemdManager *daemon.SystemdManager, sbmPath string, port int, version string, license *licensing.Manager) *Server {
 	gin.SetMode(gin.ReleaseMode)
 
 	subService := service.NewSubscriptionService(store)
@@ -60,6 +82,7 @@ func NewServer(store *storage.JSONStore, processManager *daemon.ProcessManager, 
 	// 创建内核管理器
 	kernelManager := kernel.NewManager(store.GetDataDir(), store.GetSettings)
 
+	dnsService := dnsproxy.New(dnsConfig(store.GetSettings()))
 	s := &Server{
 		store:          store,
 		subService:     subService,
@@ -68,17 +91,29 @@ func NewServer(store *storage.JSONStore, processManager *daemon.ProcessManager, 
 		systemdManager: systemdManager,
 		kernelManager:  kernelManager,
 		scheduler:      service.NewScheduler(store, subService),
+		dnsService:     dnsService,
+		firewall:       firewall.New(),
+		cleaner:        maintenance.New(store.GetDataDir()),
 		router:         gin.Default(),
 		sbmPath:        sbmPath,
 		port:           port,
 		version:        version,
+		sessions:       make(map[string]time.Time),
+		license:        license,
 	}
 
 	// 设置调度器的更新回调
 	s.scheduler.SetUpdateCallback(s.autoApplyConfig)
 
 	s.setupRoutes()
+	if err := dnsService.Start(); err != nil {
+		logger.Printf("启动 DNS 服务失败: %v", err)
+	}
 	return s
+}
+
+func dnsConfig(settings *storage.Settings) dnsproxy.Config {
+	return dnsproxy.Config{Enabled: settings.DNSEnabled, Listen: settings.DNSListen, ProxyUpstream: settings.DNSProxyUpstream, DirectUpstream: settings.DNSDirectUpstream, Mode: settings.DNSRoutingMode, Exceptions: settings.DNSExceptions}
 }
 
 // StartScheduler 启动定时任务调度器
@@ -106,94 +141,115 @@ func (s *Server) setupRoutes() {
 	// API 路由组
 	api := s.router.Group("/api")
 	{
+		api.POST("/auth/login", s.login)
+		api.GET("/auth/status", s.authStatus)
+
+		protected := api.Group("")
+		protected.Use(s.requireAuth())
+		protected.POST("/auth/logout", s.logout)
+		protected.PUT("/auth/password", s.changePassword)
+		protected.GET("/backup", s.exportBackup)
+		protected.POST("/backup/import", s.importBackup)
+		protected.GET("/license/status", s.licenseStatus)
+		protected.POST("/license/activate", s.activateLicense)
+		protected.POST("/license/clear", s.clearLicense)
+
 		// 订阅管理
-		api.GET("/subscriptions", s.getSubscriptions)
-		api.POST("/subscriptions", s.addSubscription)
-		api.PUT("/subscriptions/:id", s.updateSubscription)
-		api.DELETE("/subscriptions/:id", s.deleteSubscription)
-		api.POST("/subscriptions/:id/refresh", s.refreshSubscription)
-		api.POST("/subscriptions/refresh-all", s.refreshAllSubscriptions)
+		protected.GET("/subscriptions", s.getSubscriptions)
+		protected.POST("/subscriptions", s.addSubscription)
+		protected.PUT("/subscriptions/:id", s.updateSubscription)
+		protected.DELETE("/subscriptions/:id", s.deleteSubscription)
+		protected.POST("/subscriptions/:id/refresh", s.refreshSubscription)
+		protected.POST("/subscriptions/refresh-all", s.refreshAllSubscriptions)
 
 		// 过滤器管理
-		api.GET("/filters", s.getFilters)
-		api.POST("/filters", s.addFilter)
-		api.PUT("/filters/:id", s.updateFilter)
-		api.DELETE("/filters/:id", s.deleteFilter)
+		protected.GET("/filters", s.getFilters)
+		protected.POST("/filters", s.addFilter)
+		protected.PUT("/filters/:id", s.updateFilter)
+		protected.DELETE("/filters/:id", s.deleteFilter)
 
 		// 规则管理
-		api.GET("/rules", s.getRules)
-		api.POST("/rules", s.addRule)
-		api.PUT("/rules/:id", s.updateRule)
-		api.DELETE("/rules/:id", s.deleteRule)
+		protected.GET("/rules", s.getRules)
+		protected.POST("/rules", s.addRule)
+		protected.PUT("/rules/:id", s.updateRule)
+		protected.DELETE("/rules/:id", s.deleteRule)
 
 		// 规则组管理
-		api.GET("/rule-groups", s.getRuleGroups)
-		api.PUT("/rule-groups/:id", s.updateRuleGroup)
+		protected.GET("/rule-groups", s.getRuleGroups)
+		protected.PUT("/rule-groups/:id", s.updateRuleGroup)
 
 		// 规则集验证
-		api.GET("/ruleset/validate", s.validateRuleSet)
+		protected.GET("/ruleset/validate", s.validateRuleSet)
 
 		// 设置
-		api.GET("/settings", s.getSettings)
-		api.PUT("/settings", s.updateSettings)
+		protected.GET("/settings", s.getSettings)
+		protected.PUT("/settings", s.updateSettings)
 
 		// 系统 hosts
-		api.GET("/system-hosts", s.getSystemHosts)
+		protected.GET("/system-hosts", s.getSystemHosts)
 
 		// 配置生成
-		api.POST("/config/generate", s.generateConfig)
-		api.POST("/config/apply", s.applyConfig)
-		api.GET("/config/preview", s.previewConfig)
+		protected.POST("/config/generate", s.generateConfig)
+		protected.POST("/config/apply", s.applyConfig)
+		protected.GET("/config/preview", s.previewConfig)
 
 		// 服务管理
-		api.GET("/service/status", s.getServiceStatus)
-		api.POST("/service/start", s.startService)
-		api.POST("/service/stop", s.stopService)
-		api.POST("/service/restart", s.restartService)
-		api.POST("/service/reload", s.reloadService)
+		protected.GET("/service/status", s.getServiceStatus)
+		protected.POST("/service/start", s.startService)
+		protected.POST("/service/stop", s.stopService)
+		protected.POST("/service/restart", s.restartService)
+		protected.POST("/service/reload", s.reloadService)
 
 		// launchd 管理
-		api.GET("/launchd/status", s.getLaunchdStatus)
-		api.POST("/launchd/install", s.installLaunchd)
-		api.POST("/launchd/uninstall", s.uninstallLaunchd)
-		api.POST("/launchd/restart", s.restartLaunchd)
+		protected.GET("/launchd/status", s.getLaunchdStatus)
+		protected.POST("/launchd/install", s.installLaunchd)
+		protected.POST("/launchd/uninstall", s.uninstallLaunchd)
+		protected.POST("/launchd/restart", s.restartLaunchd)
 
 		// systemd 管理
-		api.GET("/systemd/status", s.getSystemdStatus)
-		api.POST("/systemd/install", s.installSystemd)
-		api.POST("/systemd/uninstall", s.uninstallSystemd)
-		api.POST("/systemd/restart", s.restartSystemd)
+		protected.GET("/systemd/status", s.getSystemdStatus)
+		protected.POST("/systemd/install", s.installSystemd)
+		protected.POST("/systemd/uninstall", s.uninstallSystemd)
+		protected.POST("/systemd/restart", s.restartSystemd)
 
 		// 统一守护进程管理（自动判断系统）
-		api.GET("/daemon/status", s.getDaemonStatus)
-		api.POST("/daemon/install", s.installDaemon)
-		api.POST("/daemon/uninstall", s.uninstallDaemon)
-		api.POST("/daemon/restart", s.restartDaemon)
+		protected.GET("/daemon/status", s.getDaemonStatus)
+		protected.POST("/daemon/install", s.installDaemon)
+		protected.POST("/daemon/uninstall", s.uninstallDaemon)
+		protected.POST("/daemon/restart", s.restartDaemon)
 
 		// 系统监控
-		api.GET("/monitor/system", s.getSystemInfo)
-		api.GET("/monitor/logs", s.getLogs)
-		api.GET("/monitor/logs/sbm", s.getAppLogs)
-		api.GET("/monitor/logs/singbox", s.getSingboxLogs)
+		protected.GET("/monitor/system", s.getSystemInfo)
+		protected.GET("/monitor/logs", s.getLogs)
+		protected.GET("/monitor/logs/sbm", s.getAppLogs)
+		protected.GET("/monitor/logs/singbox", s.getSingboxLogs)
+		protected.GET("/monitor/dns", s.getDNSMonitor)
+		protected.GET("/firewall/status", s.getFirewallStatus)
+		protected.GET("/firewall/preview", s.previewFirewall)
+		protected.POST("/firewall/apply", s.applyFirewall)
+		protected.POST("/firewall/disable", s.disableFirewall)
+		protected.GET("/system/cleanup", s.previewCleanup)
+		protected.POST("/system/cleanup", s.runCleanup)
 
 		// 节点
-		api.GET("/nodes", s.getAllNodes)
-		api.GET("/nodes/countries", s.getCountryGroups)
-		api.GET("/nodes/country/:code", s.getNodesByCountry)
-		api.POST("/nodes/parse", s.parseNodeURL)
+		protected.GET("/nodes", s.getAllNodes)
+		protected.GET("/nodes/countries", s.getCountryGroups)
+		protected.GET("/nodes/country/:code", s.getNodesByCountry)
+		protected.POST("/nodes/parse", s.parseNodeURL)
 
 		// 手动节点
-		api.GET("/manual-nodes", s.getManualNodes)
-		api.POST("/manual-nodes", s.addManualNode)
-		api.PUT("/manual-nodes/:id", s.updateManualNode)
-		api.DELETE("/manual-nodes/:id", s.deleteManualNode)
+		protected.GET("/manual-nodes", s.getManualNodes)
+		protected.POST("/manual-nodes", s.addManualNode)
+		protected.PUT("/manual-nodes/:id", s.updateManualNode)
+		protected.DELETE("/manual-nodes/:id", s.deleteManualNode)
 
 		// 内核管理
-		api.GET("/kernel/info", s.getKernelInfo)
-		api.GET("/kernel/releases", s.getKernelReleases)
-		api.POST("/kernel/download", s.startKernelDownload)
-		api.GET("/kernel/progress", s.getKernelProgress)
+		protected.GET("/kernel/info", s.getKernelInfo)
+		protected.GET("/kernel/releases", s.getKernelReleases)
+		protected.POST("/kernel/download", s.startKernelDownload)
+		protected.GET("/kernel/progress", s.getKernelProgress)
 	}
+	s.router.GET("/client/:path", s.clientConfig)
 
 	// 静态文件服务（前端，使用嵌入的文件系统）
 	distFS, err := web.GetDistFS()
@@ -228,6 +284,9 @@ func (s *Server) getSubscriptions(c *gin.Context) {
 }
 
 func (s *Server) addSubscription(c *gin.Context) {
+	if s.license != nil {
+		s.store.SetSubscriptionLimit(s.license.Limit())
+	}
 	var req struct {
 		Name string `json:"name" binding:"required"`
 		URL  string `json:"url" binding:"required"`
@@ -240,6 +299,10 @@ func (s *Server) addSubscription(c *gin.Context) {
 
 	sub, err := s.subService.Add(req.Name, req.URL)
 	if err != nil {
+		if errors.Is(err, storage.ErrSubscriptionLimitExceeded) {
+			c.JSON(http.StatusForbidden, gin.H{"error": err.Error()})
+			return
+		}
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
@@ -586,6 +649,14 @@ func (s *Server) updateSettings(c *gin.Context) {
 
 	// 根据局域网访问设置处理 secret
 	if settings.AllowLAN {
+		if settings.MixedAuthEnabled {
+			if settings.MixedUsername == "" {
+				settings.MixedUsername = "cmsingbox"
+			}
+			if settings.MixedPassword == "" {
+				settings.MixedPassword = generateRandomSecret(24)
+			}
+		}
 		// 开启局域网访问且 secret 为空时，自动生成一个
 		if settings.ClashAPISecret == "" {
 			settings.ClashAPISecret = generateRandomSecret(16)
@@ -597,6 +668,10 @@ func (s *Server) updateSettings(c *gin.Context) {
 
 	if err := s.store.UpdateSettings(&settings); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	if err := s.dnsService.Update(dnsConfig(&settings)); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "DNS 配置已保存但服务启动失败: " + err.Error()})
 		return
 	}
 
@@ -694,8 +769,10 @@ func (s *Server) buildConfig() (string, error) {
 	ruleGroups := s.store.GetRuleGroups()
 
 	b := builder.NewConfigBuilder(settings, nodes, filters, rules, ruleGroups)
-	if version, err := s.processManager.Version(); err == nil {
-		b = b.WithSingBoxVersion(version)
+	if s.processManager != nil {
+		if version, err := s.processManager.Version(); err == nil {
+			b = b.WithSingBoxVersion(version)
+		}
 	}
 	return b.BuildJSON()
 }
@@ -958,7 +1035,7 @@ func (s *Server) installSystemd(c *gin.Context) {
 
 	if err := s.systemdManager.Start(); err != nil {
 		c.JSON(http.StatusOK, gin.H{
-			"message": "服务已安装，但启动失败: " + err.Error() + "。请执行 systemctl --user start singbox-manager",
+			"message": "服务已安装，但启动失败: " + err.Error() + "。请执行 systemctl --user start cmsingbox",
 			"action":  "manual",
 		})
 		return
@@ -1162,8 +1239,72 @@ type ProcessStats struct {
 	MemoryMB   float64 `json:"memory_mb"`
 }
 
+type HostStats struct {
+	Hostname       string  `json:"hostname"`
+	IPAddress      string  `json:"ip_address"`
+	OS             string  `json:"os"`
+	Platform       string  `json:"platform"`
+	Architecture   string  `json:"architecture"`
+	Uptime         uint64  `json:"uptime"`
+	CPUModel       string  `json:"cpu_model"`
+	CPUPercent     float64 `json:"cpu_percent"`
+	MemoryPercent  float64 `json:"memory_percent"`
+	MemoryTotal    uint64  `json:"memory_total"`
+	DiskPercent    float64 `json:"disk_percent"`
+	DiskTotal      uint64  `json:"disk_total"`
+	NetworkUpBPS   float64 `json:"network_up_bps"`
+	NetworkDownBPS float64 `json:"network_down_bps"`
+}
+
+func primaryIPAddress() string {
+	interfaces, _ := stdnet.Interfaces()
+	for _, iface := range interfaces {
+		if iface.Flags&stdnet.FlagUp == 0 || iface.Flags&stdnet.FlagLoopback != 0 {
+			continue
+		}
+		addresses, _ := iface.Addrs()
+		for _, address := range addresses {
+			ip, _, err := stdnet.ParseCIDR(address.String())
+			if err == nil && ip.To4() != nil {
+				return ip.String()
+			}
+		}
+	}
+	return ""
+}
+
 func (s *Server) getSystemInfo(c *gin.Context) {
 	result := gin.H{}
+	hostStats := HostStats{Architecture: runtime.GOARCH, OS: runtime.GOOS, IPAddress: primaryIPAddress()}
+	if info, err := host.Info(); err == nil {
+		hostStats.Hostname, hostStats.Platform, hostStats.Uptime = info.Hostname, info.Platform, info.Uptime
+	}
+	if details, err := cpu.Info(); err == nil && len(details) > 0 {
+		hostStats.CPUModel = details[0].ModelName
+	}
+	if values, err := cpu.Percent(0, false); err == nil && len(values) > 0 {
+		hostStats.CPUPercent = values[0]
+	}
+	if memory, err := mem.VirtualMemory(); err == nil {
+		hostStats.MemoryPercent, hostStats.MemoryTotal = memory.UsedPercent, memory.Total
+	}
+	if usage, err := disk.Usage("/"); err == nil {
+		hostStats.DiskPercent, hostStats.DiskTotal = usage.UsedPercent, usage.Total
+	}
+	if counters, err := gnet.IOCounters(false); err == nil && len(counters) > 0 {
+		now := time.Now()
+		s.networkMu.Lock()
+		if !s.lastNetAt.IsZero() {
+			seconds := now.Sub(s.lastNetAt).Seconds()
+			if seconds > 0 && counters[0].BytesSent >= s.lastNetSent && counters[0].BytesRecv >= s.lastNetRecv {
+				hostStats.NetworkUpBPS = float64(counters[0].BytesSent-s.lastNetSent) / seconds
+				hostStats.NetworkDownBPS = float64(counters[0].BytesRecv-s.lastNetRecv) / seconds
+			}
+		}
+		s.lastNetSent, s.lastNetRecv, s.lastNetAt = counters[0].BytesSent, counters[0].BytesRecv, now
+		s.networkMu.Unlock()
+	}
+	result["host"] = hostStats
 
 	// 获取 sbm 进程信息
 	sbmPid := int32(os.Getpid())
@@ -1200,6 +1341,11 @@ func (s *Server) getSystemInfo(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"data": result})
+}
+
+func (s *Server) getDNSMonitor(c *gin.Context) {
+	stats, logs, running := s.dnsService.Snapshot()
+	c.JSON(http.StatusOK, gin.H{"data": gin.H{"running": running, "stats": stats, "logs": logs}})
 }
 
 func (s *Server) getLogs(c *gin.Context) {

@@ -3,12 +3,14 @@ package builder
 import (
 	"encoding/json"
 	"fmt"
+	"net"
+	"net/url"
 	"os"
 	"sort"
 	"strconv"
 	"strings"
 
-	"github.com/xiaobei/singbox-manager/internal/storage"
+	"cmsingbox.local/cmsingbox/internal/storage"
 )
 
 // SingBoxConfig sing-box 配置结构
@@ -16,7 +18,7 @@ type SingBoxConfig struct {
 	Log          *LogConfig          `json:"log,omitempty"`
 	DNS          *DNSConfig          `json:"dns,omitempty"`
 	NTP          *NTPConfig          `json:"ntp,omitempty"`
-	Inbounds     []Inbound           `json:"inbounds,omitempty"`
+	Inbounds     []interface{}       `json:"inbounds,omitempty"`
 	Outbounds    []Outbound          `json:"outbounds"`
 	Route        *RouteConfig        `json:"route,omitempty"`
 	Experimental *ExperimentalConfig `json:"experimental,omitempty"`
@@ -40,23 +42,26 @@ type DNSConfig struct {
 
 // DNSServer DNS 服务器 (新格式，支持 FakeIP 和 hosts)
 type DNSServer struct {
-	Tag        string         `json:"tag"`
-	Type       string         `json:"type"`                   // udp, tcp, https, tls, quic, h3, fakeip, rcode, hosts
-	Server     string         `json:"server,omitempty"`       // 服务器地址
-	Detour     string         `json:"detour,omitempty"`       // 出站代理
-	Inet4Range string         `json:"inet4_range,omitempty"`  // FakeIP IPv4 地址池
-	Inet6Range string         `json:"inet6_range,omitempty"`  // FakeIP IPv6 地址池
-	Predefined map[string]any `json:"predefined,omitempty"`   // hosts 类型专用：预定义域名映射
+	Tag            string          `json:"tag"`
+	Type           string          `json:"type"`             // udp, tcp, https, tls, quic, h3, fakeip, rcode, hosts
+	Server         string          `json:"server,omitempty"` // 服务器地址
+	ServerPort     int             `json:"server_port,omitempty"`
+	Path           string          `json:"path,omitempty"`
+	Detour         string          `json:"detour,omitempty"`          // 出站代理
+	DomainResolver *DomainResolver `json:"domain_resolver,omitempty"` // DNS 服务器域名的引导解析器
+	Inet4Range     string          `json:"inet4_range,omitempty"`     // FakeIP IPv4 地址池
+	Inet6Range     string          `json:"inet6_range,omitempty"`     // FakeIP IPv6 地址池
+	Predefined     map[string]any  `json:"predefined,omitempty"`      // hosts 类型专用：预定义域名映射
 }
 
 // DNSRule DNS 规则
 type DNSRule struct {
-	Outbound  string   `json:"outbound,omitempty"`   // 匹配出站的 DNS 查询，如 "any" 表示代理服务器地址解析
+	Outbound  string   `json:"outbound,omitempty"` // 匹配出站的 DNS 查询，如 "any" 表示代理服务器地址解析
 	RuleSet   []string `json:"rule_set,omitempty"`
 	QueryType []string `json:"query_type,omitempty"`
-	Domain    []string `json:"domain,omitempty"`     // 完整域名匹配
+	Domain    []string `json:"domain,omitempty"` // 完整域名匹配
 	Server    string   `json:"server,omitempty"`
-	Action    string   `json:"action,omitempty"`     // route, reject 等
+	Action    string   `json:"action,omitempty"` // route, reject 等
 }
 
 // NTPConfig NTP 配置
@@ -67,16 +72,22 @@ type NTPConfig struct {
 
 // Inbound 入站配置
 type Inbound struct {
-	Type           string   `json:"type"`
-	Tag            string   `json:"tag"`
-	Listen         string   `json:"listen,omitempty"`
-	ListenPort     int      `json:"listen_port,omitempty"`
-	Address        []string `json:"address,omitempty"`
-	AutoRoute      bool     `json:"auto_route,omitempty"`
-	StrictRoute    bool     `json:"strict_route,omitempty"`
-	Stack          string   `json:"stack,omitempty"`
-	Sniff          bool     `json:"sniff,omitempty"`
-	SniffOverrideDestination bool `json:"sniff_override_destination,omitempty"`
+	Type                     string        `json:"type"`
+	Tag                      string        `json:"tag"`
+	Listen                   string        `json:"listen,omitempty"`
+	ListenPort               int           `json:"listen_port,omitempty"`
+	Address                  []string      `json:"address,omitempty"`
+	AutoRoute                bool          `json:"auto_route,omitempty"`
+	StrictRoute              bool          `json:"strict_route,omitempty"`
+	Stack                    string        `json:"stack,omitempty"`
+	Sniff                    bool          `json:"sniff,omitempty"`
+	SniffOverrideDestination bool          `json:"sniff_override_destination,omitempty"`
+	Users                    []InboundUser `json:"users,omitempty"`
+}
+
+type InboundUser struct {
+	Username string `json:"username"`
+	Password string `json:"password"`
 }
 
 // Outbound 出站配置
@@ -111,17 +122,17 @@ type RuleSet struct {
 
 // ExperimentalConfig 实验性配置
 type ExperimentalConfig struct {
-	ClashAPI *ClashAPIConfig `json:"clash_api,omitempty"`
+	ClashAPI  *ClashAPIConfig  `json:"clash_api,omitempty"`
 	CacheFile *CacheFileConfig `json:"cache_file,omitempty"`
 }
 
 // ClashAPIConfig Clash API 配置
 type ClashAPIConfig struct {
-	ExternalController string `json:"external_controller,omitempty"`
-	ExternalUI         string `json:"external_ui,omitempty"`
+	ExternalController    string `json:"external_controller,omitempty"`
+	ExternalUI            string `json:"external_ui,omitempty"`
 	ExternalUIDownloadURL string `json:"external_ui_download_url,omitempty"`
-	Secret             string `json:"secret,omitempty"`
-	DefaultMode        string `json:"default_mode,omitempty"`
+	Secret                string `json:"secret,omitempty"`
+	DefaultMode           string `json:"default_mode,omitempty"`
 }
 
 // CacheFileConfig 缓存文件配置
@@ -173,7 +184,7 @@ func (b *ConfigBuilder) Build() (*SingBoxConfig, error) {
 		Log:       b.buildLog(),
 		DNS:       b.buildDNS(),
 		NTP:       b.buildNTP(),
-		Inbounds:  b.buildInbounds(),
+		Inbounds:  b.buildAllInbounds(),
 		Outbounds: b.buildOutbounds(),
 		Route:     b.buildRoute(),
 	}
@@ -203,10 +214,47 @@ func (b *ConfigBuilder) BuildJSON() (string, error) {
 
 // buildLog 构建日志配置
 func (b *ConfigBuilder) buildLog() *LogConfig {
-	return &LogConfig{
-		Level:     "info",
-		Timestamp: true,
+	if !b.settings.LogEnabled {
+		return nil
 	}
+	return &LogConfig{
+		Level:     b.settings.LogLevel,
+		Timestamp: b.settings.LogTimestamp,
+		Output:    b.settings.LogPath,
+	}
+}
+
+func parseDNSServer(tag, value, fallbackType, detour string) DNSServer {
+	server := DNSServer{Tag: tag, Type: fallbackType, Server: value, Detour: detour}
+	parsed, err := url.Parse(value)
+	if err != nil || parsed.Scheme == "" {
+		return server
+	}
+	server.Type = parsed.Scheme
+	server.Server = parsed.Hostname()
+	server.Path = parsed.EscapedPath()
+	if port, err := strconv.Atoi(parsed.Port()); err == nil {
+		server.ServerPort = port
+	}
+	if server.Server != "" && net.ParseIP(server.Server) == nil {
+		server.DomainResolver = &DomainResolver{Server: "dns_bootstrap"}
+	}
+	return server
+}
+
+func (b *ConfigBuilder) buildAllInbounds() []interface{} {
+	built := b.buildInbounds()
+	result := make([]interface{}, 0, len(built)+len(b.settings.ExtraInbounds))
+	for _, inbound := range built {
+		result = append(result, inbound)
+	}
+	for _, inbound := range b.settings.ExtraInbounds {
+		result = append(result, inbound)
+	}
+	if b.settings.BackHomeEnabled {
+		result = append(result, map[string]interface{}{"type": "hysteria2", "tag": "backhome-in", "listen": "::", "listen_port": b.settings.BackHomePort, "users": []map[string]string{{"password": b.settings.BackHomePassword}}, "tls": map[string]interface{}{"enabled": true, "certificate_path": b.settings.BackHomeCertPath, "key_path": b.settings.BackHomeKeyPath}})
+	}
+	return result
 }
 
 // ParseSystemHosts 解析系统 /etc/hosts 文件
@@ -253,20 +301,16 @@ func (b *ConfigBuilder) buildDNS() *DNSConfig {
 	// 基础 DNS 服务器
 	servers := []DNSServer{
 		{
-			Tag:    "dns_proxy",
-			Type:   "https",
-			Server: "8.8.8.8",
-			Detour: "Proxy",
-		},
-		{
-			Tag:    "dns_direct",
+			Tag:    "dns_bootstrap",
 			Type:   "udp",
 			Server: "223.5.5.5",
 		},
+		parseDNSServer("dns_proxy", b.settings.ProxyDNS, "https", "Proxy"),
+		parseDNSServer("dns_direct", b.settings.DirectDNS, "udp", ""),
 		{
 			Tag:        "dns_fakeip",
 			Type:       "fakeip",
-			Inet4Range: "198.18.0.0/15",
+			Inet4Range: b.settings.FakeIPRange,
 			Inet6Range: "fc00::/18",
 		},
 	}
@@ -345,7 +389,7 @@ func (b *ConfigBuilder) buildDNS() *DNSConfig {
 		Servers:          servers,
 		Rules:            rules,
 		Final:            "dns_proxy",
-		IndependentCache: true,
+		IndependentCache: false,
 	}
 }
 
@@ -373,6 +417,9 @@ func (b *ConfigBuilder) buildInbounds() []Inbound {
 			ListenPort: b.settings.MixedPort,
 		},
 	}
+	if b.settings.MixedAuthEnabled && b.settings.MixedUsername != "" && b.settings.MixedPassword != "" {
+		inbounds[0].Users = []InboundUser{{Username: b.settings.MixedUsername, Password: b.settings.MixedPassword}}
+	}
 
 	if b.profile.LegacyInboundFields {
 		inbounds[0].Sniff = true
@@ -393,6 +440,9 @@ func (b *ConfigBuilder) buildInbounds() []Inbound {
 			tunInbound.SniffOverrideDestination = true
 		}
 		inbounds = append(inbounds, tunInbound)
+	}
+	if b.settings.TransparentProxy {
+		inbounds = append(inbounds, Inbound{Type: "tproxy", Tag: "tproxy-in", Listen: "0.0.0.0", ListenPort: b.settings.TProxyPort, Sniff: true, SniffOverrideDestination: true})
 	}
 
 	return inbounds
@@ -570,6 +620,12 @@ func (b *ConfigBuilder) buildOutbounds() []Outbound {
 		"outbounds": fallbackOutbounds,
 		"default":   b.settings.FinalOutbound,
 	})
+	for _, extra := range b.settings.ExtraOutbounds {
+		outbounds = append(outbounds, Outbound(extra))
+	}
+	if b.settings.BackHomeEnabled && b.settings.BackHomeServer != "" {
+		outbounds = append(outbounds, Outbound{"type": "hysteria2", "tag": "回家", "server": b.settings.BackHomeServer, "server_port": b.settings.BackHomePort, "password": b.settings.BackHomePassword, "tls": map[string]interface{}{"enabled": true, "server_name": b.settings.BackHomeServer}})
+	}
 
 	return outbounds
 }

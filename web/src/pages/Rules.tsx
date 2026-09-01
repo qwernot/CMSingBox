@@ -266,9 +266,7 @@ export default function Rules() {
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-bold text-gray-800 dark:text-white">规则管理</h1>
-      </div>
+      <div><p className="text-sm font-medium text-blue-600">流量策略</p><h1 className="text-2xl font-bold text-gray-800 dark:text-white">规则管理</h1><p className="mt-1 text-sm text-gray-500">为不同站点和服务指定代理出口</p></div>
 
       {/* 预设规则组 */}
       <Card>
@@ -280,9 +278,9 @@ export default function Rules() {
             {ruleGroups.map((group) => (
               <div
                 key={group.id}
-                className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-800 rounded-lg"
+                className="flex flex-col items-start justify-between gap-3 rounded-lg bg-gray-50 p-4 dark:bg-gray-800 sm:flex-row sm:items-center"
               >
-                <div className="flex items-center gap-3">
+                <div className="flex w-full items-center gap-3 sm:w-auto">
                   <div className="p-2 bg-white dark:bg-gray-700 rounded-lg">
                     {iconMap[group.id] || <Globe className="w-5 h-5" />}
                   </div>
@@ -302,7 +300,7 @@ export default function Rules() {
                     </div>
                   </div>
                 </div>
-                <div className="flex items-center gap-3">
+                <div className="flex w-full items-center justify-end gap-3 sm:w-auto">
                   <Select
                     size="sm"
                     className="w-32"

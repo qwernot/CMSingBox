@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"testing"
 
-	"github.com/xiaobei/singbox-manager/internal/storage"
+	"cmsingbox.local/cmsingbox/internal/storage"
 )
 
 func TestConfigBuilder_NodeToOutbound_TUICEnsuresTLS(t *testing.T) {
@@ -108,5 +108,66 @@ func TestCompatProfileFromVersion_UsesModernProfileFor113OrLater(t *testing.T) {
 	profile := CompatProfileFromVersion("sing-box version 1.13.5")
 	if profile.LegacyInboundFields {
 		t.Fatalf("LegacyInboundFields = %v, want false", profile.LegacyInboundFields)
+	}
+}
+
+func TestConfigBuilder_DomainDNSServerUsesBootstrapResolver(t *testing.T) {
+	settings := storage.DefaultSettings()
+	settings.DirectDNS = "https://dns.alidns.com/dns-query"
+	configJSON, err := NewConfigBuilder(settings, nil, nil, nil, nil).BuildJSON()
+	if err != nil {
+		t.Fatal(err)
+	}
+	var config struct {
+		DNS struct {
+			Servers []DNSServer `json:"servers"`
+		} `json:"dns"`
+	}
+	if err := json.Unmarshal([]byte(configJSON), &config); err != nil {
+		t.Fatal(err)
+	}
+	var direct *DNSServer
+	for i := range config.DNS.Servers {
+		if config.DNS.Servers[i].Tag == "dns_direct" {
+			direct = &config.DNS.Servers[i]
+		}
+	}
+	if direct == nil || direct.DomainResolver == nil || direct.DomainResolver.Server != "dns_bootstrap" {
+		t.Fatalf("dns_direct domain resolver = %#v, want dns_bootstrap", direct)
+	}
+}
+
+func TestConfigBuilder_MixedInboundAuthentication(t *testing.T) {
+	settings := storage.DefaultSettings()
+	settings.AllowLAN = true
+	settings.MixedAuthEnabled = true
+	settings.MixedUsername = "proxy-user"
+	settings.MixedPassword = "proxy-pass"
+	config, err := NewConfigBuilder(settings, nil, nil, nil, nil).Build()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(config.Inbounds) == 0 {
+		t.Fatal("mixed inbound missing")
+	}
+	mixed, ok := config.Inbounds[0].(Inbound)
+	if !ok || mixed.Listen != "0.0.0.0" || len(mixed.Users) != 1 || mixed.Users[0].Username != "proxy-user" || mixed.Users[0].Password != "proxy-pass" {
+		t.Fatalf("unexpected authenticated mixed inbound: %#v", config.Inbounds[0])
+	}
+}
+
+func TestConfigBuilder_MixedInboundWithoutAuthentication(t *testing.T) {
+	settings := storage.DefaultSettings()
+	settings.AllowLAN = true
+	settings.MixedAuthEnabled = false
+	settings.MixedUsername = "saved-user"
+	settings.MixedPassword = "saved-pass"
+	config, err := NewConfigBuilder(settings, nil, nil, nil, nil).Build()
+	if err != nil {
+		t.Fatal(err)
+	}
+	mixed, ok := config.Inbounds[0].(Inbound)
+	if !ok || mixed.Listen != "0.0.0.0" || len(mixed.Users) != 0 {
+		t.Fatalf("unexpected unauthenticated mixed inbound: %#v", config.Inbounds[0])
 	}
 }

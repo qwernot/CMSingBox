@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/xiaobei/singbox-manager/internal/storage"
+	"cmsingbox.local/cmsingbox/internal/storage"
 )
 
 // VlessParser VLESS 解析器

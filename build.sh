@@ -9,9 +9,11 @@ set -e
 VERSION=${VERSION:-"0.2.13"}
 BUILD_TIME=$(date -u '+%Y-%m-%d %H:%M:%S')
 GIT_COMMIT=$(git rev-parse --short HEAD 2>/dev/null || echo "unknown")
+LICENSE_PUBLIC_KEY=${LICENSE_PUBLIC_KEY:-""}
+FREE_SUBSCRIPTION_LIMIT=${FREE_SUBSCRIPTION_LIMIT:-"1"}
 
 OUTPUT_DIR="dist"
-BINARY_NAME="sbm"
+BINARY_NAME="cmsingbox"
 
 # 颜色输出
 RED='\033[0;31m'
@@ -94,7 +96,7 @@ build_target() {
     info "构建 ${os}/${arch}..."
 
     CGO_ENABLED=0 GOOS=$os GOARCH=$arch go build \
-        -ldflags "-s -w -X main.Version=${VERSION} -X 'main.BuildTime=${BUILD_TIME}' -X main.GitCommit=${GIT_COMMIT}" \
+        -ldflags "-s -w -X main.Version=${VERSION} -X 'main.BuildTime=${BUILD_TIME}' -X main.GitCommit=${GIT_COMMIT} -X main.LicensePublicKey=${LICENSE_PUBLIC_KEY} -X main.FreeSubscriptionLimit=${FREE_SUBSCRIPTION_LIMIT}" \
         -o "${OUTPUT_DIR}/${output_name}" \
         ./cmd/sbm/
 
@@ -129,6 +131,8 @@ show_help() {
     echo "环境变量:"
     echo "  VERSION      版本号 (默认: ${VERSION})"
     echo "  SKIP_FRONTEND=1  跳过前端构建"
+    echo "  LICENSE_PUBLIC_KEY  Base64 编码的授权公钥"
+    echo "  FREE_SUBSCRIPTION_LIMIT  未授权订阅链接上限 (默认: 1)"
     echo ""
     echo "示例:"
     echo "  $0                    # 构建所有平台（包含前端）"

@@ -5,7 +5,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/xiaobei/singbox-manager/internal/storage"
+	"cmsingbox.local/cmsingbox/internal/storage"
 )
 
 // Scheduler 定时任务调度器

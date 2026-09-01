@@ -1,9 +1,9 @@
 import { useEffect, useState, useRef } from 'react';
 import { Card, CardBody, CardHeader, Input, Button, Switch, Chip, Modal, ModalContent, ModalHeader, ModalBody, ModalFooter, Select, SelectItem, Progress, Textarea, useDisclosure } from '@nextui-org/react';
-import { Save, Download, Upload, Terminal, CheckCircle, AlertCircle, Plus, Pencil, Trash2, Server, Eye, EyeOff, Copy, RefreshCw, Wifi } from 'lucide-react';
+import { Save, Download, Upload, Terminal, CheckCircle, AlertCircle, Plus, Pencil, Trash2, Server, Eye, EyeOff, Copy, RefreshCw, Wifi, ShieldCheck, Database, ShoppingCart } from 'lucide-react';
 import { useStore } from '../store';
 import type { Settings as SettingsType, HostEntry } from '../store';
-import { daemonApi, kernelApi, settingsApi } from '../api';
+import { authApi, backupApi, daemonApi, firewallApi, kernelApi, licenseApi, maintenanceApi, settingsApi } from '../api';
 import { toast } from '../components/Toast';
 
 // 内核信息类型
@@ -30,6 +30,18 @@ interface GithubRelease {
   name: string;
 }
 
+interface LicenseStatus {
+  is_valid: boolean;
+  status: 'licensed' | 'unlicensed';
+  reason?: string;
+  device_code: string;
+  license_id?: string;
+  max_subscriptions: number;
+  used_subscriptions: number;
+  remaining_subscriptions: number;
+  expires_at?: number;
+}
+
 export default function Settings() {
   const { settings, fetchSettings, updateSettings } = useStore();
   const [formData, setFormData] = useState<SettingsType | null>(null);
@@ -53,13 +65,64 @@ export default function Settings() {
 
   // 密钥显示状态
   const [showSecret, setShowSecret] = useState(false);
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [changingPassword, setChangingPassword] = useState(false);
+  const [backupBusy, setBackupBusy] = useState(false);
+  const [firewallStatus, setFirewallStatus] = useState<{ supported: boolean; active: boolean } | null>(null);
+  const [cleanupPreview, setCleanupPreview] = useState<{ logs_bytes: number; temporary_bytes: number; files: number } | null>(null);
+  const backupInputRef = useRef<HTMLInputElement | null>(null);
+  const [licenseStatus, setLicenseStatus] = useState<LicenseStatus | null>(null);
+  const [licenseCode, setLicenseCode] = useState('');
+  const [licenseBusy, setLicenseBusy] = useState(false);
 
   useEffect(() => {
     fetchSettings();
     fetchDaemonStatus();
     fetchKernelInfo();
     fetchSystemHosts();
+    firewallApi.status().then((response) => setFirewallStatus(response.data.data)).catch(() => undefined);
+    maintenanceApi.preview().then((response) => setCleanupPreview(response.data.data)).catch(() => undefined);
+    fetchLicenseStatus();
   }, []);
+
+  const fetchLicenseStatus = async () => {
+    try {
+      const response = await licenseApi.status();
+      setLicenseStatus(response.data.data);
+    } catch (error) {
+      console.error('获取授权状态失败:', error);
+    }
+  };
+
+  const handleActivateLicense = async () => {
+    setLicenseBusy(true);
+    try {
+      const response = await licenseApi.activate(licenseCode.trim());
+      setLicenseStatus(response.data.data);
+      setLicenseCode('');
+      toast.success('授权成功');
+    } catch (error: any) {
+      toast.error(error.response?.data?.error || '授权失败');
+    } finally {
+      setLicenseBusy(false);
+    }
+  };
+
+  const handleClearLicense = async () => {
+    if (!confirm('清除后将恢复为最多 1 条订阅链接，确定继续吗？')) return;
+    setLicenseBusy(true);
+    try {
+      const response = await licenseApi.clear();
+      setLicenseStatus(response.data.data);
+      toast.success('授权已清除');
+    } catch (error: any) {
+      toast.error(error.response?.data?.error || '清除授权失败');
+    } finally {
+      setLicenseBusy(false);
+    }
+  };
 
   useEffect(() => {
     if (settings) {
@@ -263,6 +326,84 @@ export default function Settings() {
     }
   };
 
+  const handleChangePassword = async () => {
+    if (newPassword.length < 8) {
+      toast.error('新密码至少需要 8 个字符');
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      toast.error('两次输入的新密码不一致');
+      return;
+    }
+    setChangingPassword(true);
+    try {
+      await authApi.changePassword(currentPassword, newPassword);
+      setCurrentPassword('');
+      setNewPassword('');
+      setConfirmPassword('');
+      toast.success('密码已更新');
+    } catch (error: unknown) {
+      const message = typeof error === 'object' && error !== null && 'response' in error
+        ? (error as { response?: { data?: { error?: string } } }).response?.data?.error
+        : undefined;
+      toast.error(message || '修改密码失败');
+    } finally {
+      setChangingPassword(false);
+    }
+  };
+
+  const handleExportBackup = async () => {
+    setBackupBusy(true);
+    try {
+      const response = await backupApi.export();
+      const disposition = response.headers['content-disposition'] || '';
+      const match = disposition.match(/filename="?([^";]+)"?/);
+      const filename = match?.[1] || 'cmsingbox-backup.zip';
+      const url = URL.createObjectURL(response.data);
+      const anchor = document.createElement('a');
+      anchor.href = url;
+      anchor.download = filename;
+      anchor.click();
+      URL.revokeObjectURL(url);
+      toast.success('备份已导出');
+    } catch {
+      toast.error('导出备份失败');
+    } finally {
+      setBackupBusy(false);
+    }
+  };
+
+  const handleImportBackup = async (file?: File) => {
+    if (!file) return;
+    if (!confirm('导入会覆盖当前的订阅、节点、规则和设置，确定继续吗？')) {
+      if (backupInputRef.current) backupInputRef.current.value = '';
+      return;
+    }
+    setBackupBusy(true);
+    try {
+      await backupApi.import(file);
+      await fetchSettings();
+      toast.success('备份恢复成功，请检查配置后重新应用');
+    } catch (error: unknown) {
+      const message = typeof error === 'object' && error !== null && 'response' in error
+        ? (error as { response?: { data?: { error?: string } } }).response?.data?.error
+        : undefined;
+      toast.error(message || '导入备份失败');
+    } finally {
+      setBackupBusy(false);
+      if (backupInputRef.current) backupInputRef.current.value = '';
+    }
+  };
+
+  const handleFirewall = async (enable: boolean) => {
+    if (!confirm(enable ? '即将修改本机 nftables 和策略路由，确定应用透明代理规则吗？' : '确定停用本机透明代理规则吗？')) return;
+    try { if (enable) await firewallApi.apply(); else await firewallApi.disable(); const response = await firewallApi.status(); setFirewallStatus(response.data.data); toast.success(enable ? '透明代理已启用' : '透明代理已停用'); }
+    catch (error: unknown) { const message = typeof error === 'object' && error !== null && 'response' in error ? (error as { response?: { data?: { error?: string } } }).response?.data?.error : undefined; toast.error(message || '防火墙操作失败'); }
+  };
+
+  const formatBytes = (value = 0) => value > 1024 * 1024 ? `${(value / 1024 / 1024).toFixed(1)} MB` : `${(value / 1024).toFixed(1)} KB`;
+  const handleCleanup = async () => { if (!confirm('确定清空应用日志和临时下载文件吗？此操作不可撤销。')) return; try { const response = await maintenanceApi.clean(true, true); setCleanupPreview(response.data.data); toast.success('系统垃圾已清理'); } catch { toast.error('清理失败'); } };
+
   const handleInstallDaemon = async () => {
     try {
       const res = await daemonApi.install();
@@ -282,7 +423,7 @@ export default function Settings() {
   };
 
   const handleUninstallDaemon = async () => {
-    if (confirm('确定要卸载后台服务吗？卸载后 sbm 将不再开机自启。')) {
+    if (confirm('确定要卸载后台服务吗？卸载后 CMSingBox 将不再开机自启。')) {
       try {
         await daemonApi.uninstall();
         toast.success('服务已卸载');
@@ -359,8 +500,8 @@ export default function Settings() {
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-bold text-gray-800 dark:text-white">设置</h1>
+      <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
+        <div><p className="text-sm font-medium text-blue-600">系统配置</p><h1 className="text-2xl font-bold text-gray-800 dark:text-white">设置</h1></div>
         <Button
           color="primary"
           startContent={<Save className="w-4 h-4" />}
@@ -369,6 +510,30 @@ export default function Settings() {
           保存设置
         </Button>
       </div>
+
+      <Card>
+        <CardHeader className="flex justify-between items-center">
+          <div className="flex items-center"><ShieldCheck className="w-5 h-5 mr-2" /><h2 className="text-lg font-semibold">软件授权</h2></div>
+          <Chip color={licenseStatus?.is_valid ? 'success' : 'warning'} variant="flat">
+            {licenseStatus?.is_valid ? '已授权' : '未授权'}
+          </Chip>
+        </CardHeader>
+        <CardBody className="space-y-4">
+          <div className="grid gap-3 sm:grid-cols-3">
+            <div className="rounded-lg bg-default-100 p-3"><p className="text-xs text-default-500">设备码</p><p className="font-mono text-lg">{licenseStatus?.device_code || '------'}</p></div>
+            <div className="rounded-lg bg-default-100 p-3"><p className="text-xs text-default-500">订阅链接</p><p className="text-lg">{licenseStatus?.used_subscriptions ?? 0} / {licenseStatus?.max_subscriptions ?? 1}</p></div>
+            <div className="rounded-lg bg-default-100 p-3"><p className="text-xs text-default-500">有效期</p><p className="text-lg">{licenseStatus?.expires_at ? new Date(licenseStatus.expires_at * 1000).toLocaleDateString() : (licenseStatus?.is_valid ? '永久' : '未授权')}</p></div>
+          </div>
+          <p className="text-sm text-default-500">未授权版本最多添加 1 条订阅链接；订阅内节点数和手动节点数不限制。将此设备码交给授权方获取离线授权码。</p>
+          {licenseStatus?.reason && <p className="text-sm text-warning">{licenseStatus.reason}</p>}
+          <Input label="授权码" placeholder="CMS1..." value={licenseCode} onChange={(event) => setLicenseCode(event.target.value)} />
+          <div className="flex flex-wrap gap-2">
+            <Button color="primary" isLoading={licenseBusy} isDisabled={!licenseCode.trim()} onPress={handleActivateLicense}>激活授权</Button>
+            <Button as="a" href="https://666228.xyz" target="_blank" rel="noopener noreferrer" color="secondary" variant="flat" startContent={<ShoppingCart className="h-4 w-4" />}>购买授权</Button>
+            {licenseStatus?.is_valid && <Button color="danger" variant="flat" isDisabled={licenseBusy} onPress={handleClearLicense}>清除授权</Button>}
+          </div>
+        </CardBody>
+      </Card>
 
       {/* sing-box 配置 */}
       <Card>
@@ -456,9 +621,9 @@ export default function Settings() {
             <div>
               <p className="font-medium flex items-center gap-2">
                 <Wifi className="w-4 h-4" />
-                允许局域网访问
+                开放 HTTP / SOCKS5 端口
               </p>
-              <p className="text-sm text-gray-500">允许局域网内其他设备通过本机代理上网</p>
+              <p className="text-sm text-gray-500">监听 0.0.0.0，允许其他设备通过服务器 IP 和端口连接</p>
             </div>
             <Switch
               isSelected={formData.allow_lan}
@@ -483,7 +648,21 @@ export default function Settings() {
             />
           </div>
 
-          {/* ClashAPI 密钥 - 仅在开启局域网访问时显示 */}
+          {formData.allow_lan && (
+            <div className={`space-y-4 rounded-xl border p-4 ${formData.mixed_auth_enabled ? 'border-success-200 bg-success-50 dark:border-success-800 dark:bg-success-900/20' : 'border-danger-200 bg-danger-50 dark:border-danger-800 dark:bg-danger-900/20'}`}>
+              <div className="flex items-center justify-between gap-4">
+                <div><p className="font-medium">HTTP / SOCKS5 连接认证</p><p className="text-sm text-gray-500">同一端口同时支持 HTTP 和 SOCKS5，认证可选。</p></div>
+                <Switch isSelected={Boolean(formData.mixed_auth_enabled)} onValueChange={(enabled) => setFormData({ ...formData, mixed_auth_enabled: enabled })} />
+              </div>
+              {formData.mixed_auth_enabled ? (
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <Input label="代理用户名" value={formData.mixed_username || ''} onChange={(e) => setFormData({ ...formData, mixed_username: e.target.value })} />
+                  <Input label="代理密码" type={showSecret ? 'text' : 'password'} value={formData.mixed_password || ''} onChange={(e) => setFormData({ ...formData, mixed_password: e.target.value })} />
+                </div>
+              ) : <p className="text-sm text-danger-600 dark:text-danger-400">认证已关闭。任何能访问该端口的人都可以使用代理，公网环境不建议关闭。</p>}
+            </div>
+          )}
+
           {formData.allow_lan && (
             <div className="p-4 rounded-lg bg-warning-50 dark:bg-warning-900/20 border border-warning-200 dark:border-warning-800">
               <div className="flex items-center gap-2 mb-2">
@@ -556,6 +735,36 @@ export default function Settings() {
             value={formData.direct_dns}
             onChange={(e) => setFormData({ ...formData, direct_dns: e.target.value })}
           />
+          <div className="mt-4 pt-4 border-t border-divider space-y-4">
+            <div className="flex items-center justify-between"><div><p className="font-medium">独立 DNS 分流服务</p><p className="text-sm text-gray-500">按客户端来源 IP 选择代理或直连上游，并记录查询统计</p></div><Switch isSelected={formData.dns_enabled} onValueChange={(value) => setFormData({ ...formData, dns_enabled: value })} /></div>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Input
+                label="DNS 监听 IP"
+                description="0.0.0.0 表示接受所有网卡的请求"
+                value={(formData.dns_listen || '0.0.0.0:53').replace(/:\d+$/, '') || '0.0.0.0'}
+                onChange={(e) => {
+                  const port = (formData.dns_listen || '0.0.0.0:53').match(/:(\d+)$/)?.[1] || '53';
+                  setFormData({ ...formData, dns_listen: `${e.target.value || '0.0.0.0'}:${port}` });
+                }}
+              />
+              <Input
+                type="number"
+                min={1}
+                max={65535}
+                label="DNS 监听端口"
+                description="标准 DNS 端口为 53，可按需修改"
+                value={(formData.dns_listen || '0.0.0.0:53').match(/:(\d+)$/)?.[1] || '53'}
+                onChange={(e) => {
+                  const address = (formData.dns_listen || '0.0.0.0:53').replace(/:\d+$/, '') || '0.0.0.0';
+                  const port = Math.min(65535, Math.max(1, Number(e.target.value) || 53));
+                  setFormData({ ...formData, dns_listen: `${address}:${port}` });
+                }}
+              />
+            </div>
+            <div className="grid md:grid-cols-2 gap-4"><Input label="代理 DNS 上游" value={formData.dns_proxy_upstream || '127.0.0.1:1053'} onChange={(e) => setFormData({ ...formData, dns_proxy_upstream: e.target.value })} /><Input label="直连 DNS 上游" value={formData.dns_direct_upstream || '223.5.5.5:53'} onChange={(e) => setFormData({ ...formData, dns_direct_upstream: e.target.value })} /></div>
+            <Select label="DNS 分流模式" selectedKeys={[formData.dns_routing_mode || 'default_proxy']} onSelectionChange={(keys) => setFormData({ ...formData, dns_routing_mode: String(Array.from(keys)[0]) })}><SelectItem key="default_proxy">默认代理，例外设备直连</SelectItem><SelectItem key="default_direct">默认直连，例外设备代理</SelectItem></Select>
+            <Textarea label="例外设备" description="每行一个 IP 或 CIDR，可在 # 后添加备注" value={(formData.dns_exceptions || []).join('\n')} onChange={(e) => setFormData({ ...formData, dns_exceptions: e.target.value.split('\n').map((item) => item.trim()).filter(Boolean) })} />
+          </div>
 
           {/* Hosts 映射 */}
           <div className="mt-6 pt-4 border-t border-divider">
@@ -679,6 +888,11 @@ export default function Settings() {
         </CardBody>
       </Card>
 
+      <Card>
+        <CardHeader className="flex justify-between"><div><h2 className="text-lg font-semibold">透明代理</h2><p className="text-sm text-gray-500">使用 nftables TProxy 接管旁路由转发流量</p></div><Chip color={firewallStatus?.active ? 'success' : 'default'} variant="flat">{firewallStatus?.active ? '已应用' : '未应用'}</Chip></CardHeader>
+        <CardBody className="space-y-4"><div className="flex justify-between"><div><p className="font-medium">启用透明代理配置</p><p className="text-sm text-gray-500">保存后会在 Sing-box 配置中生成 TProxy 入站</p></div><Switch isSelected={formData.transparent_proxy} onValueChange={(value) => setFormData({ ...formData, transparent_proxy: value })} /></div><Input type="number" label="TProxy 端口" value={String(formData.tproxy_port || 7893)} onChange={(e) => setFormData({ ...formData, tproxy_port: Number(e.target.value) })} /><Textarea label="绕过网段" value={(formData.bypass_cidrs || []).join('\n')} onChange={(e) => setFormData({ ...formData, bypass_cidrs: e.target.value.split('\n').map((item) => item.trim()).filter(Boolean) })} /><div className="flex gap-2"><Button color="primary" isDisabled={!formData.transparent_proxy || !firewallStatus?.supported} onPress={() => handleFirewall(true)}>应用 nftables</Button><Button color="danger" variant="flat" isDisabled={!firewallStatus?.active} onPress={() => handleFirewall(false)}>停用规则</Button>{firewallStatus && !firewallStatus.supported && <Chip color="warning" variant="flat">系统未安装 nft</Chip>}</div></CardBody>
+      </Card>
+
       {/* 自动化设置 */}
       <Card>
         <CardHeader>
@@ -706,6 +920,42 @@ export default function Settings() {
         </CardBody>
       </Card>
 
+      {/* 账户安全 */}
+      <Card>
+        <CardHeader>
+          <ShieldCheck className="w-5 h-5 mr-2" />
+          <h2 className="text-lg font-semibold">账户安全</h2>
+        </CardHeader>
+        <CardBody className="space-y-4">
+          <Input type="password" label="当前密码" value={currentPassword} onChange={(e) => setCurrentPassword(e.target.value)} autoComplete="current-password" />
+          <Input type="password" label="新密码" description="至少 8 个字符" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} autoComplete="new-password" />
+          <Input type="password" label="确认新密码" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} autoComplete="new-password" />
+          <div>
+            <Button color="primary" variant="flat" isLoading={changingPassword} isDisabled={!currentPassword || !newPassword || !confirmPassword} onPress={handleChangePassword}>
+              修改密码
+            </Button>
+          </div>
+        </CardBody>
+      </Card>
+
+      {/* 数据管理 */}
+      <Card>
+        <CardHeader>
+          <Database className="w-5 h-5 mr-2" />
+          <h2 className="text-lg font-semibold">数据管理</h2>
+        </CardHeader>
+        <CardBody>
+          <p className="text-sm text-gray-500 mb-4">导出或恢复订阅、节点、筛选、规则和系统设置。密码及登录会话不会包含在备份中。</p>
+          <div className="flex flex-wrap gap-2">
+            <Button startContent={<Download className="w-4 h-4" />} isLoading={backupBusy} onPress={handleExportBackup}>导出数据</Button>
+            <Button color="primary" variant="flat" startContent={<Upload className="w-4 h-4" />} isDisabled={backupBusy} onPress={() => backupInputRef.current?.click()}>导入数据</Button>
+            <input ref={backupInputRef} type="file" accept=".zip,application/zip" className="hidden" onChange={(event) => handleImportBackup(event.target.files?.[0])} />
+          </div>
+        </CardBody>
+      </Card>
+
+      <Card><CardHeader><h2 className="text-lg font-semibold">系统清理</h2></CardHeader><CardBody><p className="text-sm text-gray-500 mb-4">可清理日志 {formatBytes(cleanupPreview?.logs_bytes)}、临时文件 {formatBytes(cleanupPreview?.temporary_bytes)}，共 {cleanupPreview?.files || 0} 个文件。</p><div><Button color="danger" variant="flat" isDisabled={!cleanupPreview || cleanupPreview.files === 0} onPress={handleCleanup}>清理日志与临时文件</Button></div></CardBody></Card>
+
       {/* 后台服务管理 */}
       {daemonStatus?.supported && (
         <Card>
@@ -723,7 +973,7 @@ export default function Settings() {
           </CardHeader>
           <CardBody>
             <p className="text-sm text-gray-500 mb-4">
-              安装后台服务可让 sbm 管理程序在后台运行，关闭终端后仍可访问 Web 管理界面。服务会开机自启并在崩溃后自动重启。
+              安装后台服务可让 CMSingBox 管理程序在后台运行，关闭终端后仍可访问 Web 管理界面。服务会开机自启并在崩溃后自动重启。
             </p>
             <div className="flex gap-2">
               {daemonStatus?.installed ? (

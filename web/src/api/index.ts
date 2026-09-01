@@ -5,6 +5,51 @@ const api = axios.create({
   timeout: 30000,
 });
 
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response?.status === 401 && !error.config?.url?.startsWith('/auth/')) {
+      window.dispatchEvent(new Event('sbm:unauthorized'));
+    }
+    return Promise.reject(error);
+  },
+);
+
+export const authApi = {
+  status: () => api.get('/auth/status'),
+  login: (username: string, password: string) => api.post('/auth/login', { username, password }),
+  logout: () => api.post('/auth/logout'),
+  changePassword: (currentPassword: string, newPassword: string) =>
+    api.put('/auth/password', { current_password: currentPassword, new_password: newPassword }),
+};
+
+export const backupApi = {
+  export: () => api.get('/backup', { responseType: 'blob' }),
+  import: (file: File) => {
+    const form = new FormData();
+    form.append('file', file);
+    return api.post('/backup/import', form);
+  },
+};
+
+export const licenseApi = {
+	status: () => api.get('/license/status'),
+	activate: (licenseCode: string) => api.post('/license/activate', { license_code: licenseCode }),
+	clear: () => api.post('/license/clear'),
+};
+
+export const firewallApi = {
+  status: () => api.get('/firewall/status'),
+  preview: () => api.get('/firewall/preview'),
+  apply: () => api.post('/firewall/apply'),
+  disable: () => api.post('/firewall/disable'),
+};
+
+export const maintenanceApi = {
+  preview: () => api.get('/system/cleanup'),
+  clean: (logs: boolean, temporary: boolean) => api.post('/system/cleanup', { logs, temporary }),
+};
+
 // 订阅 API
 export const subscriptionApi = {
   getAll: () => api.get('/subscriptions'),
@@ -88,6 +133,7 @@ export const monitorApi = {
   logs: () => api.get('/monitor/logs'),
   appLogs: (lines: number = 200) => api.get(`/monitor/logs/sbm?lines=${lines}`),
   singboxLogs: (lines: number = 200) => api.get(`/monitor/logs/singbox?lines=${lines}`),
+  dns: () => api.get('/monitor/dns'),
 };
 
 // 节点 API

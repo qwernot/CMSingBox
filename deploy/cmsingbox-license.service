@@ -1,0 +1,21 @@
+[Unit]
+Description=CMSingBox private license signer
+After=network.target
+
+[Service]
+Type=simple
+User=root
+Group=root
+WorkingDirectory=/var/lib/cmsingbox-license
+EnvironmentFile=/etc/cmsingbox-license.env
+ExecStart=/opt/cmsingbox-license/cmsingbox-license-server -listen 0.0.0.0:9093 -private-key /var/lib/cmsingbox-license/private.key -audit /var/lib/cmsingbox-license/license-audit.jsonl
+Restart=always
+RestartSec=5
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectHome=true
+ProtectSystem=strict
+ReadWritePaths=/var/lib/cmsingbox-license
+
+[Install]
+WantedBy=multi-user.target

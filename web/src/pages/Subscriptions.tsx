@@ -317,9 +317,9 @@ export default function Subscriptions() {
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-bold text-gray-800 dark:text-white">节点管理</h1>
-        <div className="flex gap-2">
+      <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
+        <div><p className="text-sm font-medium text-blue-600">代理配置</p><h1 className="text-2xl font-bold text-gray-800 dark:text-white">节点与订阅</h1></div>
+        <div className="flex flex-wrap gap-2">
           <Button
             color="secondary"
             variant="flat"
@@ -509,7 +509,7 @@ export default function Subscriptions() {
               </CardBody>
             </Card>
           ) : (
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 mt-4">
+            <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
               {countryGroups.map((group) => (
                 <Card key={group.code} className="hover:shadow-md transition-shadow">
                   <CardBody className="flex flex-row items-center gap-3">
@@ -627,7 +627,7 @@ export default function Subscriptions() {
                       onChange={(e) => setNodeForm({ ...nodeForm, tag: e.target.value })}
                     />
 
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                       <Select
                         label="节点类型"
                         selectedKeys={[nodeForm.type]}
@@ -660,7 +660,7 @@ export default function Subscriptions() {
                       </Select>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                       <Input
                         label="服务器地址"
                         placeholder="example.com"
@@ -820,7 +820,7 @@ export default function Subscriptions() {
                       })}
                       size="sm"
                     />
-                    <div className="grid grid-cols-2 gap-3">
+                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                       <Input
                         label="测速间隔"
                         placeholder="5m"

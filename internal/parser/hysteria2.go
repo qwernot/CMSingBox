@@ -6,7 +6,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/xiaobei/singbox-manager/internal/storage"
+	"cmsingbox.local/cmsingbox/internal/storage"
 )
 
 // Hysteria2Parser Hysteria2 解析器

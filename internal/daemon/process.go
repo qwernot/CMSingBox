@@ -12,8 +12,8 @@ import (
 	"syscall"
 	"time"
 
+	"cmsingbox.local/cmsingbox/internal/logger"
 	"github.com/shirou/gopsutil/v3/process"
-	"github.com/xiaobei/singbox-manager/internal/logger"
 )
 
 // ProcessManager 进程管理器
@@ -22,6 +22,7 @@ type ProcessManager struct {
 	configPath  string
 	dataDir     string // 数据目录，用于设置 sing-box 的工作目录
 	pidFile     string // PID 文件路径，用于持久化进程状态
+	desiredFile string // 标记用户期望 sing-box 保持运行
 	cmd         *exec.Cmd
 	mu          sync.RWMutex
 	running     bool
@@ -32,17 +33,34 @@ type ProcessManager struct {
 
 // NewProcessManager 创建进程管理器
 func NewProcessManager(singboxPath, configPath, dataDir string) *ProcessManager {
+	pidFile := filepath.Join(dataDir, "singbox.pid")
+	_, hadPIDFile := os.Stat(pidFile)
 	pm := &ProcessManager{
 		singboxPath: singboxPath,
 		configPath:  configPath,
 		dataDir:     dataDir,
-		pidFile:     filepath.Join(dataDir, "singbox.pid"),
+		pidFile:     pidFile,
+		desiredFile: filepath.Join(dataDir, "singbox.enabled"),
 		maxLogs:     1000,
 		logs:        make([]string, 0),
 	}
 
 	// 启动时尝试恢复已有的 sing-box 进程
 	pm.recoverProcess()
+
+	// 兼容旧版本：面板由 systemd 重启时，子进程会先被同一 cgroup 结束，
+	// 但遗留的 PID 文件说明用户此前希望服务运行。将其迁移为持久状态标记。
+	_, desiredErr := os.Stat(pm.desiredFile)
+	shouldRun := desiredErr == nil || hadPIDFile == nil
+	if shouldRun {
+		if pm.running {
+			if err := os.WriteFile(pm.desiredFile, []byte("enabled\n"), 0600); err != nil {
+				logger.Printf("迁移 sing-box 运行状态失败: %v", err)
+			}
+		} else if err := pm.Start(); err != nil {
+			logger.Printf("自动恢复 sing-box 失败: %v", err)
+		}
+	}
 
 	return pm
 }
@@ -86,7 +104,7 @@ func (pm *ProcessManager) recoverFromPidFile() int {
 	}
 
 	// 使用 kill -0 快速验证进程是否存活
-	if !pm.isProcessAlive(pid) {
+	if !pm.isProcessAlive(pid) || !pm.isManagedSingboxProcess(pid) {
 		os.Remove(pm.pidFile)
 		return 0
 	}
@@ -131,6 +149,26 @@ func (pm *ProcessManager) isValidSingboxProcess(pid int) bool {
 	return pm.isSingboxProcess(proc)
 }
 
+// isManagedSingboxProcess 只识别由管理器启动的 run 进程。
+// `sing-box version` 和 `sing-box check` 也是同名短进程，不能当成服务恢复，
+// 否则状态轮询会表现为 sing-box 不断启动和退出。
+func (pm *ProcessManager) isManagedSingboxProcess(pid int) bool {
+	proc, err := process.NewProcess(int32(pid))
+	if err != nil || !pm.isSingboxProcess(proc) {
+		return false
+	}
+	cmdline, err := proc.CmdlineSlice()
+	if err != nil || len(cmdline) < 2 {
+		return false
+	}
+	for _, arg := range cmdline[1:] {
+		if arg == "run" {
+			return true
+		}
+	}
+	return false
+}
+
 // isProcessAlive 使用 kill -0 检查进程是否存活（更可靠）
 func (pm *ProcessManager) isProcessAlive(pid int) bool {
 	if pid <= 0 {
@@ -167,17 +205,15 @@ func (pm *ProcessManager) findSingboxByPgrep() int {
 		return 0
 	}
 
-	// pgrep 可能返回多行（多个进程），取第一个
+	// pgrep 可能同时找到 version/check 等短进程，只接受 run 进程。
 	lines := strings.Split(strings.TrimSpace(string(output)), "\n")
-	if len(lines) == 0 || lines[0] == "" {
-		return 0
+	for _, line := range lines {
+		pid, err := strconv.Atoi(strings.TrimSpace(line))
+		if err == nil && pm.isManagedSingboxProcess(pid) {
+			return pid
+		}
 	}
-
-	pid, err := strconv.Atoi(lines[0])
-	if err != nil {
-		return 0
-	}
-	return pid
+	return 0
 }
 
 // recoverState 恢复运行状态
@@ -274,6 +310,9 @@ func (pm *ProcessManager) Start() error {
 
 	pm.running = true
 	pm.pid = pm.cmd.Process.Pid
+	if err := os.WriteFile(pm.desiredFile, []byte("enabled\n"), 0600); err != nil {
+		logger.Printf("写入 sing-box 运行状态失败: %v", err)
+	}
 
 	// 写入 PID 文件
 	if err := os.WriteFile(pm.pidFile, []byte(strconv.Itoa(pm.pid)), 0644); err != nil {
@@ -331,6 +370,7 @@ func (pm *ProcessManager) Start() error {
 func (pm *ProcessManager) Stop() error {
 	pm.mu.Lock()
 	defer pm.mu.Unlock()
+	os.Remove(pm.desiredFile)
 
 	if !pm.running {
 		return nil
@@ -407,7 +447,7 @@ func (pm *ProcessManager) IsRunning() bool {
 	// 2. 内存状态是未运行，但尝试实际检测进程是否存活
 
 	// 2.1 检查保存的 PID
-	if pid > 0 && pm.isProcessAlive(pid) {
+	if pid > 0 && pm.isProcessAlive(pid) && pm.isManagedSingboxProcess(pid) {
 		pm.recoverState(pid)
 		return true
 	}
@@ -415,14 +455,14 @@ func (pm *ProcessManager) IsRunning() bool {
 	// 2.2 检查 cmd 对象的 PID
 	if cmd != nil && cmd.Process != nil {
 		cmdPid := cmd.Process.Pid
-		if pm.isProcessAlive(cmdPid) {
+		if pm.isProcessAlive(cmdPid) && pm.isManagedSingboxProcess(cmdPid) {
 			pm.recoverState(cmdPid)
 			return true
 		}
 	}
 
 	// 2.3 兜底：从 PID 文件恢复 (读文件 + kill -0，很快)
-	if filePid := pm.readPidFile(); filePid > 0 && pm.isProcessAlive(filePid) {
+	if filePid := pm.readPidFile(); filePid > 0 && pm.isProcessAlive(filePid) && pm.isManagedSingboxProcess(filePid) {
 		pm.recoverState(filePid)
 		return true
 	}
