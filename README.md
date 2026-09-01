@@ -34,7 +34,15 @@ curl -fsSL https://raw.githubusercontent.com/qwernot/CM/main/deploy/install-dock
 
 ## 授权中心部署
 
-授权中心与普通 CMSingBox 主程序完全分开，只由授权管理员部署：
+授权中心与普通 CMSingBox 主程序完全分开，只由授权管理员部署。原生 systemd 方式（不使用 Docker）：
+
+```bash
+git clone git@github.com:qwernot/CMSingBox.git
+cd CMSingBox
+sudo env CMSINGBOX_LICENSE_PASSWORD='Aa666333' sh deploy/license/install-native.sh
+```
+
+Docker 方式：
 
 ```bash
 git clone git@github.com:qwernot/CMSingBox.git
