@@ -110,16 +110,26 @@ func (s *SubscriptionService) RefreshAll() error {
 
 // refresh 内部刷新方法
 func (s *SubscriptionService) refresh(sub *storage.Subscription) error {
-	// 拉取订阅内容
-	content, info, err := utils.FetchSubscription(sub.URL)
-	if err != nil {
-		return fmt.Errorf("拉取订阅失败: %w", err)
+	// 优先获取 sing-box 原生格式；服务商不支持或本程序暂不能解析时，
+	// 自动回退 Clash 格式，避免为了兼容格式拿到不可用的降级线路。
+	content, info, err := utils.FetchSubscriptionWithUserAgent(sub.URL, "sing-box/1.13.0")
+	var nodes []storage.Node
+	if err == nil {
+		nodes, err = parser.ParseSubscriptionContent(content)
 	}
-
-	// 解析节点
-	nodes, err := parser.ParseSubscriptionContent(content)
-	if err != nil {
-		return fmt.Errorf("解析订阅失败: %w", err)
+	if err != nil || len(nodes) == 0 {
+		content, info, err = utils.FetchSubscription(sub.URL)
+		if err != nil {
+			return fmt.Errorf("拉取订阅失败: %w", err)
+		}
+		nodes, err = parser.ParseSubscriptionContent(content)
+		if err != nil {
+			return fmt.Errorf("解析订阅失败: %w", err)
+		}
+	}
+	nodes = filterInformationalNodes(nodes)
+	if len(nodes) == 0 {
+		return fmt.Errorf("订阅中没有可用节点")
 	}
 
 	// 更新订阅信息
@@ -138,6 +148,23 @@ func (s *SubscriptionService) refresh(sub *storage.Subscription) error {
 	}
 
 	return nil
+}
+
+func filterInformationalNodes(nodes []storage.Node) []storage.Node {
+	result := make([]storage.Node, 0, len(nodes))
+	for _, node := range nodes {
+		name := strings.ToLower(strings.TrimSpace(node.Tag))
+		informational := strings.Contains(name, "剩余流量") ||
+			strings.Contains(name, "流量剩余") ||
+			strings.Contains(name, "套餐到期") ||
+			strings.Contains(name, "到期时间") ||
+			strings.Contains(name, "过期时间") ||
+			(strings.Contains(name, "过滤掉") && strings.Contains(name, "线路"))
+		if !informational {
+			result = append(result, node)
+		}
+	}
+	return result
 }
 
 // Toggle 切换订阅启用状态

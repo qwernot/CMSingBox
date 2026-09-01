@@ -162,6 +162,8 @@ type ConfigBuilder struct {
 
 // NewConfigBuilder 创建配置生成器
 func NewConfigBuilder(settings *storage.Settings, nodes []storage.Node, filters []storage.Filter, rules []storage.Rule, ruleGroups []storage.RuleGroup) *ConfigBuilder {
+	nodes = filterInformationalNodes(nodes)
+	nodes = normalizeNodeTags(settings, nodes, filters, ruleGroups)
 	return &ConfigBuilder{
 		settings:   settings,
 		nodes:      nodes,
@@ -170,6 +172,68 @@ func NewConfigBuilder(settings *storage.Settings, nodes []storage.Node, filters 
 		ruleGroups: ruleGroups,
 		profile:    DefaultCompatProfile(),
 	}
+}
+
+func filterInformationalNodes(nodes []storage.Node) []storage.Node {
+	result := make([]storage.Node, 0, len(nodes))
+	for _, node := range nodes {
+		name := strings.ToLower(strings.TrimSpace(node.Tag))
+		if strings.Contains(name, "剩余流量") || strings.Contains(name, "流量剩余") ||
+			strings.Contains(name, "套餐到期") || strings.Contains(name, "到期时间") ||
+			strings.Contains(name, "过期时间") ||
+			(strings.Contains(name, "过滤掉") && strings.Contains(name, "线路")) {
+			continue
+		}
+		result = append(result, node)
+	}
+	return result
+}
+
+// normalizeNodeTags 只修改本次生成配置使用的副本。订阅经常包含同名的
+// “套餐信息”或重名线路，而 sing-box 要求所有 outbound tag 全局唯一。
+func normalizeNodeTags(settings *storage.Settings, nodes []storage.Node, filters []storage.Filter, ruleGroups []storage.RuleGroup) []storage.Node {
+	used := map[string]bool{
+		"DIRECT": true, "REJECT": true, "Auto": true, "Proxy": true, "Final": true, "回家": true,
+	}
+	for _, filter := range filters {
+		if filter.Enabled && strings.TrimSpace(filter.Name) != "" {
+			used[filter.Name] = true
+		}
+	}
+	for _, group := range ruleGroups {
+		if group.Enabled && strings.TrimSpace(group.Name) != "" {
+			used[group.Name] = true
+		}
+	}
+	for _, node := range nodes {
+		code := node.Country
+		if code == "" {
+			code = "OTHER"
+		}
+		used[fmt.Sprintf("%s %s", storage.GetCountryEmoji(code), storage.GetCountryName(code))] = true
+	}
+	if settings != nil {
+		for _, outbound := range settings.ExtraOutbounds {
+			if tag, ok := outbound["tag"].(string); ok && strings.TrimSpace(tag) != "" {
+				used[tag] = true
+			}
+		}
+	}
+
+	result := append([]storage.Node(nil), nodes...)
+	for i := range result {
+		base := strings.TrimSpace(result[i].Tag)
+		if base == "" {
+			base = "未命名节点"
+		}
+		tag := base
+		for suffix := 2; used[tag]; suffix++ {
+			tag = fmt.Sprintf("%s (%d)", base, suffix)
+		}
+		result[i].Tag = tag
+		used[tag] = true
+	}
+	return result
 }
 
 // WithSingBoxVersion 根据 sing-box version 输出应用兼容配置。
@@ -200,6 +264,17 @@ func (b *ConfigBuilder) Build() (*SingBoxConfig, error) {
 	// 添加 Clash API 支持
 	if b.settings.ClashAPIPort > 0 {
 		config.Experimental = b.buildExperimental()
+	}
+	seenTags := make(map[string]bool, len(config.Outbounds))
+	for _, outbound := range config.Outbounds {
+		tag, _ := outbound["tag"].(string)
+		if tag == "" {
+			return nil, fmt.Errorf("出站缺少 tag")
+		}
+		if seenTags[tag] {
+			return nil, fmt.Errorf("出站 tag 重复: %s", tag)
+		}
+		seenTags[tag] = true
 	}
 
 	return config, nil

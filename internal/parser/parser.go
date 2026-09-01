@@ -44,6 +44,8 @@ func ParseURL(rawURL string) (*storage.Node, error) {
 		parser = &Hysteria2Parser{}
 	case "tuic":
 		parser = &TuicParser{}
+	case "anytls":
+		parser = &AnyTLSParser{}
 	case "socks", "socks5", "socks4", "socks4a":
 		parser = &SocksParser{}
 	default:
@@ -122,6 +124,9 @@ func ParseSubscriptionContent(content string) ([]storage.Node, error) {
 		}
 	}
 
+	if len(nodes) == 0 {
+		return nil, fmt.Errorf("订阅中没有可识别的节点")
+	}
 	return nodes, nil
 }
 

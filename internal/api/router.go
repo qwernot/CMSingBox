@@ -4,6 +4,7 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"errors"
+	"fmt"
 	"io/fs"
 	stdnet "net"
 	"net/http"
@@ -66,6 +67,7 @@ type Server struct {
 	version        string // sbm 版本号
 	sessions       map[string]time.Time
 	sessionsMu     sync.RWMutex
+	configMu       sync.Mutex
 	networkMu      sync.Mutex
 	lastNetSent    uint64
 	lastNetRecv    uint64
@@ -740,15 +742,8 @@ func (s *Server) applyConfig(c *gin.Context) {
 		return
 	}
 
-	// 保存配置文件
 	settings := s.store.GetSettings()
-	if err := s.saveConfigFile(s.resolvePath(settings.ConfigPath), configJSON); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
-	}
-
-	// 检查配置
-	if err := s.processManager.Check(); err != nil {
+	if err := s.installCheckedConfig(s.resolvePath(settings.ConfigPath), configJSON); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
@@ -780,8 +775,42 @@ func (s *Server) buildConfig() (string, error) {
 	return b.BuildJSON()
 }
 
-func (s *Server) saveConfigFile(path, content string) error {
-	return os.WriteFile(path, []byte(content), 0644)
+// installCheckedConfig 先在同目录写入候选配置并调用 sing-box check，
+// 校验成功后再原子替换正式配置，避免坏订阅让正在工作的代理离线。
+func (s *Server) installCheckedConfig(path, content string) error {
+	s.configMu.Lock()
+	defer s.configMu.Unlock()
+
+	dir := filepath.Dir(path)
+	if err := os.MkdirAll(dir, 0755); err != nil {
+		return fmt.Errorf("创建配置目录失败: %w", err)
+	}
+	tmp, err := os.CreateTemp(dir, ".cmsingbox-config-*.json")
+	if err != nil {
+		return fmt.Errorf("创建候选配置失败: %w", err)
+	}
+	tmpPath := tmp.Name()
+	defer os.Remove(tmpPath)
+	if _, err := tmp.WriteString(content); err != nil {
+		tmp.Close()
+		return fmt.Errorf("写入候选配置失败: %w", err)
+	}
+	if err := tmp.Chmod(0644); err != nil {
+		tmp.Close()
+		return fmt.Errorf("设置候选配置权限失败: %w", err)
+	}
+	if err := tmp.Close(); err != nil {
+		return fmt.Errorf("关闭候选配置失败: %w", err)
+	}
+	if s.processManager != nil {
+		if err := s.processManager.CheckPath(tmpPath); err != nil {
+			return err
+		}
+	}
+	if err := os.Rename(tmpPath, path); err != nil {
+		return fmt.Errorf("安装已校验配置失败: %w", err)
+	}
+	return nil
 }
 
 // resolvePath 将相对路径解析为基于数据目录的绝对路径
@@ -805,8 +834,8 @@ func (s *Server) autoApplyConfig() error {
 		return err
 	}
 
-	// 保存配置文件
-	if err := s.saveConfigFile(s.resolvePath(settings.ConfigPath), configJSON); err != nil {
+	// 校验成功后才覆盖现有配置。
+	if err := s.installCheckedConfig(s.resolvePath(settings.ConfigPath), configJSON); err != nil {
 		return err
 	}
 

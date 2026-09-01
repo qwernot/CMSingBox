@@ -56,3 +56,16 @@ func TestSchedulerAppliesSuccessfulPartialRefreshes(t *testing.T) {
 		t.Fatal("scheduler skipped config apply after a partial refresh failure")
 	}
 }
+
+func TestFilterInformationalNodes(t *testing.T) {
+	nodes := []storage.Node{
+		{Tag: "剩余流量：96 GB"},
+		{Tag: "套餐到期：长期有效"},
+		{Tag: "过滤掉15条线路"},
+		{Tag: "日本JP-A"},
+	}
+	got := filterInformationalNodes(nodes)
+	if len(got) != 1 || got[0].Tag != "日本JP-A" {
+		t.Fatalf("filtered nodes = %#v", got)
+	}
+}

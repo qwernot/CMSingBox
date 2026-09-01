@@ -24,6 +24,7 @@ type ProcessManager struct {
 	pidFile     string // PID 文件路径，用于持久化进程状态
 	desiredFile string // 标记用户期望 sing-box 保持运行
 	cmd         *exec.Cmd
+	lifecycleMu sync.Mutex // 串行化启动、停止和重启，避免多个配置应用互相抢占
 	mu          sync.RWMutex
 	running     bool
 	pid         int // 保存 PID（支持恢复的进程，即使 cmd 为空）
@@ -275,6 +276,11 @@ func (pm *ProcessManager) monitorProcess(pid int) {
 
 		// 连续失败达到阈值，认为进程退出
 		pm.mu.Lock()
+		if pm.pid != pid {
+			pm.mu.Unlock()
+			logger.Printf("忽略旧 sing-box 进程退出事件, PID: %d", pid)
+			return
+		}
 		pm.running = false
 		pm.pid = 0
 		pm.mu.Unlock()
@@ -286,6 +292,12 @@ func (pm *ProcessManager) monitorProcess(pid int) {
 
 // Start 启动 sing-box
 func (pm *ProcessManager) Start() error {
+	pm.lifecycleMu.Lock()
+	defer pm.lifecycleMu.Unlock()
+	return pm.startLocked()
+}
+
+func (pm *ProcessManager) startLocked() error {
 	pm.mu.Lock()
 	defer pm.mu.Unlock()
 
@@ -302,27 +314,32 @@ func (pm *ProcessManager) Start() error {
 	if _, err := os.Stat(pm.configPath); os.IsNotExist(err) {
 		return fmt.Errorf("配置文件不存在: %s", pm.configPath)
 	}
+	if err := pm.checkPath(pm.configPath); err != nil {
+		return err
+	}
 
-	pm.cmd = exec.Command(pm.singboxPath, "run", "-c", pm.configPath)
-	pm.cmd.Dir = pm.dataDir // 设置工作目录，确保相对路径（如 external_ui）正确解析
+	cmd := exec.Command(pm.singboxPath, "run", "-c", pm.configPath)
+	cmd.Dir = pm.dataDir // 设置工作目录，确保相对路径（如 external_ui）正确解析
 
 	// 捕获输出
-	stdout, err := pm.cmd.StdoutPipe()
+	stdout, err := cmd.StdoutPipe()
 	if err != nil {
 		return fmt.Errorf("获取标准输出失败: %w", err)
 	}
 
-	stderr, err := pm.cmd.StderrPipe()
+	stderr, err := cmd.StderrPipe()
 	if err != nil {
 		return fmt.Errorf("获取标准错误失败: %w", err)
 	}
 
-	if err := pm.cmd.Start(); err != nil {
+	if err := cmd.Start(); err != nil {
 		return fmt.Errorf("启动 sing-box 失败: %w", err)
 	}
 
+	pm.cmd = cmd
 	pm.running = true
-	pm.pid = pm.cmd.Process.Pid
+	pm.pid = cmd.Process.Pid
+	pid := pm.pid
 	if err := os.WriteFile(pm.desiredFile, []byte("enabled\n"), 0600); err != nil {
 		logger.Printf("写入 sing-box 运行状态失败: %v", err)
 	}
@@ -366,38 +383,55 @@ func (pm *ProcessManager) Start() error {
 	}()
 
 	// 监控进程退出
-	go func() {
-		pm.cmd.Wait()
+	go func(startedCmd *exec.Cmd, startedPID int) {
+		err := startedCmd.Wait()
 		pm.mu.Lock()
+		if pm.cmd != startedCmd || pm.pid != startedPID {
+			pm.mu.Unlock()
+			logger.Printf("旧 sing-box 进程已退出, PID: %d", startedPID)
+			return
+		}
+		pm.cmd = nil
 		pm.running = false
 		pm.pid = 0
 		pm.mu.Unlock()
 		os.Remove(pm.pidFile)
-		logger.Printf("sing-box 进程已退出")
-	}()
+		logger.Printf("sing-box 进程已退出, PID: %d, 原因: %v", startedPID, err)
+	}(cmd, pid)
 
 	return nil
 }
 
 // Stop 停止 sing-box
 func (pm *ProcessManager) Stop() error {
+	pm.lifecycleMu.Lock()
+	defer pm.lifecycleMu.Unlock()
+	return pm.stopLocked()
+}
+
+func (pm *ProcessManager) stopLocked() error {
 	pm.mu.Lock()
-	defer pm.mu.Unlock()
 	os.Remove(pm.desiredFile)
 
 	if !pm.running {
+		pm.mu.Unlock()
 		return nil
 	}
 
-	var pid int
+	pid := pm.pid
+	cmd := pm.cmd
+	pm.cmd = nil
+	pm.running = false
+	pm.pid = 0
+	pm.mu.Unlock()
 
 	// 情况1：有 cmd 对象（正常启动的进程）
-	if pm.cmd != nil && pm.cmd.Process != nil {
-		pid = pm.cmd.Process.Pid
+	if cmd != nil && cmd.Process != nil {
+		pid = cmd.Process.Pid
 		// 发送 SIGTERM 信号
-		if err := pm.cmd.Process.Signal(syscall.SIGTERM); err != nil {
+		if err := cmd.Process.Signal(syscall.SIGTERM); err != nil && pm.isProcessAlive(pid) {
 			// 如果 SIGTERM 失败，尝试 SIGKILL
-			if err := pm.cmd.Process.Kill(); err != nil {
+			if err := cmd.Process.Kill(); err != nil {
 				return fmt.Errorf("停止 sing-box 失败: %w", err)
 			}
 		}
@@ -412,19 +446,28 @@ func (pm *ProcessManager) Stop() error {
 		}
 	}
 
-	pm.running = false
-	pm.pid = 0
 	os.Remove(pm.pidFile)
+	deadline := time.Now().Add(3 * time.Second)
+	for pid > 0 && pm.isProcessAlive(pid) && time.Now().Before(deadline) {
+		time.Sleep(50 * time.Millisecond)
+	}
+	if pid > 0 && pm.isProcessAlive(pid) {
+		if proc, err := os.FindProcess(pid); err == nil {
+			_ = proc.Kill()
+		}
+	}
 	logger.Printf("sing-box 已停止, PID: %d", pid)
 	return nil
 }
 
 // Restart 重启 sing-box
 func (pm *ProcessManager) Restart() error {
-	if err := pm.Stop(); err != nil {
+	pm.lifecycleMu.Lock()
+	defer pm.lifecycleMu.Unlock()
+	if err := pm.stopLocked(); err != nil {
 		return err
 	}
-	return pm.Start()
+	return pm.startLocked()
 }
 
 // Reload 热重载配置
@@ -553,7 +596,22 @@ func (pm *ProcessManager) SetConfigPath(configPath string) {
 
 // Check 检查配置文件
 func (pm *ProcessManager) Check() error {
-	cmd := exec.Command(pm.singboxPath, "check", "-c", pm.configPath)
+	pm.mu.RLock()
+	configPath := pm.configPath
+	pm.mu.RUnlock()
+	return pm.CheckPath(configPath)
+}
+
+// CheckPath 在覆盖正式配置前校验候选配置。
+func (pm *ProcessManager) CheckPath(configPath string) error {
+	pm.mu.RLock()
+	defer pm.mu.RUnlock()
+	return pm.checkPath(configPath)
+}
+
+func (pm *ProcessManager) checkPath(configPath string) error {
+	cmd := exec.Command(pm.singboxPath, "check", "-c", configPath)
+	cmd.Dir = pm.dataDir
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("配置检查失败: %s", string(output))

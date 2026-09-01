@@ -20,6 +20,12 @@ type SubscriptionInfo struct {
 
 // FetchSubscription 拉取订阅内容
 func FetchSubscription(url string) (string, *SubscriptionInfo, error) {
+	return FetchSubscriptionWithUserAgent(url, "clash-verge/v1.0.0")
+}
+
+// FetchSubscriptionWithUserAgent 允许优先请求服务端为 sing-box 生成的原生订阅，
+// 不支持该格式时由上层回退到 Clash 兼容订阅。
+func FetchSubscriptionWithUserAgent(url, userAgent string) (string, *SubscriptionInfo, error) {
 	client := &http.Client{
 		Timeout: 30 * time.Second,
 	}
@@ -30,7 +36,7 @@ func FetchSubscription(url string) (string, *SubscriptionInfo, error) {
 	}
 
 	// 设置 User-Agent
-	req.Header.Set("User-Agent", "clash-verge/v1.0.0")
+	req.Header.Set("User-Agent", userAgent)
 
 	resp, err := client.Do(req)
 	if err != nil {

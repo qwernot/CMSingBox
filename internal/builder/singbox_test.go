@@ -192,6 +192,32 @@ func TestConfigBuilder_ClashAPIIsReachableAndProtected(t *testing.T) {
 	if api.Secret != "console-secret" {
 		t.Fatalf("secret = %q, want configured secret", api.Secret)
 	}
+	if api.DefaultMode != "rule" {
+		t.Fatalf("default_mode = %q, want rule", api.DefaultMode)
+	}
+}
+
+func TestConfigBuilder_DuplicateNodeTagsBecomeUnique(t *testing.T) {
+	nodes := []storage.Node{
+		{Tag: "日本节点", Type: "socks", Server: "127.0.0.1", ServerPort: 10001},
+		{Tag: "日本节点", Type: "socks", Server: "127.0.0.1", ServerPort: 10002},
+		{Tag: "Proxy", Type: "socks", Server: "127.0.0.1", ServerPort: 10003},
+	}
+	config, err := NewConfigBuilder(storage.DefaultSettings(), nodes, nil, nil, nil).Build()
+	if err != nil {
+		t.Fatal(err)
+	}
+	seen := make(map[string]bool)
+	for _, outbound := range config.Outbounds {
+		tag, _ := outbound["tag"].(string)
+		if seen[tag] {
+			t.Fatalf("duplicate outbound tag %q", tag)
+		}
+		seen[tag] = true
+	}
+	if !seen["日本节点"] || !seen["日本节点 (2)"] || !seen["Proxy (2)"] {
+		t.Fatalf("normalized node tags missing: %#v", seen)
+	}
 }
 
 func TestConfigBuilder_WithoutNodesUsesDirectFallback(t *testing.T) {
