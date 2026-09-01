@@ -36,6 +36,8 @@ sudo systemctl restart cmsingbox-license
 
 原生数据目录是 `/var/lib/cmsingbox-license`，环境文件是 `/etc/cmsingbox-license.env`。如果同一源码目录中已有 Docker 版的 `deploy/license/license-data/private.key`，脚本会迁移同一把私钥并保留原文件，不会生成一套导致客户端公钥失效的新密钥。
 
+已有授权中心需要重装、迁移系统或从 Docker 改为原生部署时，请先阅读 [授权中心重装与原密钥恢复](license-redeploy.md)。不要直接运行会生成新密钥的空目录安装。
+
 ## Docker 一键部署
 
 ```bash
