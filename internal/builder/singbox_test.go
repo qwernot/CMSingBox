@@ -214,3 +214,31 @@ func TestConfigBuilder_WithoutNodesUsesDirectFallback(t *testing.T) {
 	}
 	t.Fatal("Proxy selector missing")
 }
+
+func TestConfigBuilder_UpdaterDomainsBypassFakeIP(t *testing.T) {
+	config, err := NewConfigBuilder(storage.DefaultSettings(), nil, nil, nil, nil).Build()
+	if err != nil {
+		t.Fatal(err)
+	}
+	dnsFound := false
+	for _, rule := range config.DNS.Rules {
+		if len(rule.Domain) > 0 && rule.Domain[0] == "api.github.com" && rule.Server == "dns_direct" {
+			dnsFound = true
+			break
+		}
+	}
+	if !dnsFound {
+		t.Fatalf("updater DNS rule missing: %#v", config.DNS.Rules)
+	}
+	found := false
+	for _, rule := range config.Route.Rules {
+		domains, ok := rule["domain"].([]string)
+		if ok && len(domains) > 0 && domains[0] == "api.github.com" && rule["outbound"] == "DIRECT" {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Fatal("DIRECT updater route missing")
+	}
+}

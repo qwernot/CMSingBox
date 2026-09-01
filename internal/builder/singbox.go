@@ -13,6 +13,14 @@ import (
 	"cmsingbox.local/cmsingbox/internal/storage"
 )
 
+var updaterDomains = []string{
+	"api.github.com",
+	"github.com",
+	"objects.githubusercontent.com",
+	"raw.githubusercontent.com",
+	"release-assets.githubusercontent.com",
+}
+
 // SingBoxConfig sing-box 配置结构
 type SingBoxConfig struct {
 	Log          *LogConfig          `json:"log,omitempty"`
@@ -317,6 +325,11 @@ func (b *ConfigBuilder) buildDNS() *DNSConfig {
 
 	// 基础 DNS 规则
 	rules := []DNSRule{
+		{
+			Domain: updaterDomains,
+			Server: "dns_direct",
+			Action: "route",
+		},
 		{
 			RuleSet: []string{"geosite-category-ads-all"},
 			Action:  "reject",
@@ -831,6 +844,13 @@ func (b *ConfigBuilder) buildRoute() *RouteConfig {
 	rules = append(rules, RouteRule{
 		"protocol": "dns",
 		"action":   "hijack-dns",
+	})
+
+	// 管理程序的内核与规则更新不能依赖 FakeIP，否则在旁路由和容器 TUN
+	// 场景中可能拿到 198.18.0.0/15 地址却无法建立下载连接。
+	rules = append(rules, RouteRule{
+		"domain":   updaterDomains,
+		"outbound": "DIRECT",
 	})
 
 	// 3. 添加 hosts 域名的路由规则（优先级高，在其他规则之前）
