@@ -68,26 +68,25 @@ function UserContent() {
       </div>
       <Note kind="success"><b>节点数不受授权限制。</b>授权仅控制后台最多可添加多少条订阅链接；普通用户连接代理时无需处理授权。</Note>
     </SectionTitle>
-    <SectionTitle id="deploy" eyebrow="Docker 部署" title="一条命令安装 CMSingBox">
-      <p>适用于已联网的 Linux 小主机、NAS、云服务器以及 Debian/Ubuntu 主机。脚本会安装或复用 Docker，以 Host 网络模式构建并启动主程序；此命令<b>不包含授权中心</b>。</p>
-      <CodeBlock>{`curl -fsSL https://raw.githubusercontent.com/qwernot/CMSingBox/main/install.sh | sudo sh`}</CodeBlock>
+    <SectionTitle id="deploy" eyebrow="原生部署" title="一条命令安装 CMSingBox">
+      <p>普通 Linux 服务器可直接安装原生程序并由 systemd 管理，此命令<b>不经过 Docker，也不包含授权中心</b>。</p>
+      <CodeBlock>{`curl -fsSL https://raw.githubusercontent.com/qwernot/CM/main/deploy/install.sh | sudo sh`}</CodeBlock>
       <p>安装完成后访问脚本输出的 <span className="font-mono">http://设备IP:9092</span>。初始账号和密码均为 <span className="font-mono">admin</span>，首次登录后必须立即修改密码。</p>
       <CodeBlock>{`# 查看运行状态和日志
-cd /opt/cmsingbox-docker
-docker compose ps
-docker compose logs -f --tail=100
+systemctl status cmsingbox --no-pager
+journalctl -u cmsingbox -f -n 100
 
 # 更新：重新执行上面的一键安装命令`}</CodeBlock>
-      <Note kind="warning">安装目录中的 <span className="font-mono">data</span> 保存订阅、设置、许可证和 sing-box 文件。升级不会覆盖该目录；迁移或重装前仍应单独备份。</Note>
+      <Note kind="warning">数据目录 <span className="font-mono">/var/lib/cmsingbox</span> 保存订阅、设置、许可证和 sing-box 文件。升级不会覆盖该目录；迁移或重装前仍应单独备份。</Note>
     </SectionTitle>
     <SectionTitle id="lan" eyebrow="小主机部署" title="局域网应该填写哪个 IP">
-      <p>默认使用 Docker Host 网络，因此 CMSingBox 直接使用小主机自己的局域网 IP，不会额外产生一个 Docker IP。例如小主机地址是 <span className="font-mono">192.168.1.20</span>：</p>
+      <p>Docker 默认使用 macvlan，因此 CMSingBox 使用一个与小主机不同的独立局域网 IP。例如为容器预留 <span className="font-mono">192.168.1.20</span>：</p>
       <CodeBlock>{`管理后台：http://192.168.1.20:9092
 HTTP 代理：192.168.1.20:2080
 SOCKS5 代理：192.168.1.20:2080
 DNS（启用后）：192.168.1.20:53`}</CodeBlock>
-      <ol className="list-decimal space-y-3 pl-5"><li>在路由器 DHCP 中为小主机固定 IP，避免重启后地址改变。</li><li>同一局域网的客户端填写这个局域网 IP，不填写 <span className="font-mono">127.0.0.1</span>，也不填写 Docker 内部地址。</li><li>登录后台，在设置中开启“允许局域网访问”，代理监听才会对其他设备开放。</li><li>从公网使用时填写公网 IP 或域名并配置端口转发，不要把管理端口无保护地暴露公网。</li></ol>
-      <Note>只有希望“容器拥有与小主机不同的独立局域网 IP”时才需要 macvlan。它必须按现场修改网卡、网段、网关和 DHCP 范围，不适合作为通用一键安装默认值。</Note>
+      <ol className="list-decimal space-y-3 pl-5"><li>选择与小主机相同网段、未被占用且位于 DHCP 自动分配范围之外的 IP。</li><li>客户端填写 CMSingBox 容器 IP，不填写小主机 IP、<span className="font-mono">127.0.0.1</span> 或 Docker 172.x 地址。</li><li>登录后台，在设置中开启“允许局域网访问”，代理监听才会对其他设备开放。</li><li>macvlan 默认会隔离宿主机与容器，这是 Docker 的正常行为，其他局域网设备仍可访问。</li></ol>
+      <Note>网卡、网段和网关由脚本自动检测，也可通过环境变量覆盖。完整 Docker、ROS 和排障教程请查看 <a className="font-semibold text-blue-600 dark:text-cyan-300" href="https://qwernot.github.io/CM/">CMSingBox 部署文档</a>。</Note>
     </SectionTitle>
     <SectionTitle id="connection" eyebrow="准备信息" title="连接前需要四项信息">
       <div className="overflow-x-auto rounded-2xl border border-slate-200 dark:border-slate-800"><table className="w-full min-w-[560px] text-left text-sm"><thead className="bg-slate-50 text-slate-900 dark:bg-slate-900 dark:text-white"><tr><th className="p-4">项目</th><th className="p-4">示例</th><th className="p-4">说明</th></tr></thead><tbody className="divide-y divide-slate-200 dark:divide-slate-800"><tr><td className="p-4">服务器地址</td><td className="p-4 font-mono">192.168.1.20</td><td className="p-4">局域网用小主机 IP，外网用公网 IP 或域名；不要填写 127.0.0.1</td></tr><tr><td className="p-4">代理端口</td><td className="p-4 font-mono">2080</td><td className="p-4">以管理后台显示为准</td></tr><tr><td className="p-4">用户名 / 密码</td><td className="p-4">由管理员提供</td><td className="p-4">若关闭认证，可留空</td></tr><tr><td className="p-4">代理协议</td><td className="p-4">HTTP 或 SOCKS5</td><td className="p-4">同一混合端口均可使用</td></tr></tbody></table></div>
@@ -124,9 +123,9 @@ function AdminContent() {
       <Note kind="warning">后台管理端口不建议完全暴露到互联网。请使用安全组白名单、VPN、反向代理 HTTPS 或防火墙限制来源地址。</Note>
     </SectionTitle>
     <SectionTitle id="admin-deploy" eyebrow="Docker 部署" title="安装、更新和停止主程序">
-      <p>主程序使用 Host 网络，适合 Linux 服务器、NAS 和局域网小主机。主程序与授权中心完全分开，普通客户只需要执行下面这一条：</p>
-      <CodeBlock>{`curl -fsSL https://raw.githubusercontent.com/qwernot/CMSingBox/main/install.sh | sudo sh`}</CodeBlock>
-      <p>默认安装到 <span className="font-mono">/opt/cmsingbox-docker</span>，持久数据位于其中的 <span className="font-mono">data</span>。再次执行同一命令会更新代码、重新构建容器并保留数据。</p>
+      <p>主程序默认使用 macvlan 独立局域网 IP，适合 Linux 服务器、NAS 和局域网小主机。主程序与授权中心完全分开，普通客户只需要执行下面这一条：</p>
+      <CodeBlock>{`curl -fsSL https://raw.githubusercontent.com/qwernot/CM/main/deploy/install-docker.sh | sudo env CMSINGBOX_IP=192.168.1.20 sh`}</CodeBlock>
+      <p>默认安装到 <span className="font-mono">/opt/cmsingbox-docker</span>，持久数据位于其中的 <span className="font-mono">data</span>。再次执行同一命令会更新程序、重新构建容器并保留数据。</p>
       <CodeBlock>{`# 日常管理
 cd /opt/cmsingbox-docker
 docker compose ps
@@ -138,9 +137,9 @@ docker compose down`}</CodeBlock>
       <Note kind="warning">不要删除 data 目录，否则配置和已激活许可证会丢失。</Note>
     </SectionTitle>
     <SectionTitle id="admin-lan" eyebrow="网络规划" title="局域网小主机与 Docker IP">
-      <p>CMSingBox 默认不使用 macvlan，而是直接复用小主机的 LAN IP。这样无需预先知道用户家的网段，也不会与 DHCP 地址冲突，一键脚本才能适配不同环境。</p>
-      <div className="overflow-x-auto rounded-2xl border border-slate-200 dark:border-slate-800"><table className="w-full min-w-[600px] text-left text-sm"><thead className="bg-slate-50 dark:bg-slate-900"><tr><th className="p-4">部署位置</th><th className="p-4">客户端填写地址</th><th className="p-4">要求</th></tr></thead><tbody className="divide-y divide-slate-200 dark:divide-slate-800"><tr><td className="p-4">局域网小主机</td><td className="p-4 font-mono">小主机LAN IP:2080</td><td className="p-4">固定 DHCP 地址并开启允许局域网</td></tr><tr><td className="p-4">公网云服务器</td><td className="p-4 font-mono">公网IP:2080</td><td className="p-4">安全组放行并强制代理认证</td></tr><tr><td className="p-4">仅本机使用</td><td className="p-4 font-mono">127.0.0.1:2080</td><td className="p-4">只有部署主机自己能使用</td></tr></tbody></table></div>
-      <Note kind="warning">启用 DNS 53 端口前先运行 <span className="font-mono">ss -lntup | grep ':53'</span>。Host 网络会与宿主机共享端口，systemd-resolved、dnsmasq 或 AdGuard Home 已占用 53 时必须先调整冲突。</Note>
+      <p>CMSingBox 默认使用 macvlan 独立 IP，使 DNS 53、代理 2080 和后台 9092 都由容器独占，不与小主机已有服务抢端口。部署前必须按现场网络选择一个 DHCP 范围外的空闲地址。</p>
+      <div className="overflow-x-auto rounded-2xl border border-slate-200 dark:border-slate-800"><table className="w-full min-w-[600px] text-left text-sm"><thead className="bg-slate-50 dark:bg-slate-900"><tr><th className="p-4">项目</th><th className="p-4">示例</th><th className="p-4">要求</th></tr></thead><tbody className="divide-y divide-slate-200 dark:divide-slate-800"><tr><td className="p-4">小主机地址</td><td className="p-4 font-mono">192.168.1.232</td><td className="p-4">保持原有地址，不用于客户端连接</td></tr><tr><td className="p-4">CMSingBox 独立地址</td><td className="p-4 font-mono">192.168.1.20</td><td className="p-4">与小主机同网段、位于 DHCP 池外</td></tr><tr><td className="p-4">客户端代理地址</td><td className="p-4 font-mono">192.168.1.20:2080</td><td className="p-4">填写容器独立地址并开启局域网访问</td></tr></tbody></table></div>
+      <Note kind="warning">macvlan 模式不会与宿主机 53 端口冲突，但宿主机默认无法直接访问 macvlan 容器。不要把 CMSingBox IP 放进路由器 DHCP 自动分配池，以免发生地址冲突。</Note>
     </SectionTitle>
     <SectionTitle id="subscriptions" eyebrow="核心功能" title="订阅、节点与规则">
       <ol className="list-decimal space-y-3 pl-5"><li>进入“订阅管理”，添加订阅名称和 URL。</li><li>手动更新或等待定时任务拉取节点。</li><li>在“规则管理”配置域名、IP 或分流规则。</li><li>保存后由 CMSingBox 生成配置，并让 sing-box 自动重载。</li></ol>
@@ -166,16 +165,18 @@ docker compose down`}</CodeBlock>
     </SectionTitle>
     <SectionTitle id="license-deploy" eyebrow="授权端" title="在服务器部署授权服务">
       <p>授权中心是你持有的总签发端，可以给任意 CMSingBox 机器签发绑定设备码的许可证。它不包含在普通客户安装命令中，只在授权管理员自己的服务器执行：</p>
-      <CodeBlock>{`curl -fsSL https://raw.githubusercontent.com/qwernot/CMSingBox/main/install-license.sh | sudo env CMSINGBOX_LICENSE_PASSWORD='请改成至少8位强密码' sh`}</CodeBlock>
-      <p>Docker 版默认监听 9093，私钥和审计日志保存在 <span className="font-mono">/opt/cmsingbox-license-docker/license-data</span>。首次部署会生成密钥，以后更新会保留原私钥。下面保留 systemd 手工部署参数供高级维护使用。</p>
+      <CodeBlock>{`git clone git@github.com:qwernot/CMSingBox.git
+cd CMSingBox
+sudo env CMSINGBOX_LICENSE_PASSWORD='Aa666333' sh deploy/license/install.sh`}</CodeBlock>
+      <p>Docker 版默认监听 9093，私钥和审计日志保存在源码目录的 <span className="font-mono">deploy/license/license-data</span>。首次部署会生成密钥，以后更新会保留原私钥。下面保留 systemd 手工部署参数供高级维护使用。</p>
       <CodeBlock>{`# 生成登录密码哈希\nprintf '%s' '你的授权端密码' | sha256sum\n\n# /etc/cmsingbox-license.env（权限 0600）\nCMSINGBOX_LICENSE_PASSWORD_HASH=<上一步的64位哈希>\n\n# /etc/systemd/system/cmsingbox-license.service 中的启动命令\nExecStart=/opt/cmsingbox-license/cmsingbox-license-server \\\n+  -listen 0.0.0.0:9093 \\\n+  -private-key /var/lib/cmsingbox-license/private.key \\\n+  -audit /var/lib/cmsingbox-license/license-audit.jsonl\n\n# 启动并设置开机自启\nsystemctl daemon-reload\nsystemctl enable --now cmsingbox-license\nsystemctl status cmsingbox-license --no-pager`}</CodeBlock>
       <Note kind="warning">私钥决定全部许可证是否有效，必须离线备份且绝不能提交 GitHub。迁移已有总授权端时应复制原私钥，而不是重新生成。建议 9093 仅对白名单 IP 开放并配置 HTTPS。</Note>
       <p>授权端不要求与客户机器在同一服务器或同一网络。客户只需把六位设备码发给你，客户 CMSingBox 不需要联网访问授权端。</p>
     </SectionTitle>
     <SectionTitle id="license-issue" eyebrow="授权操作" title="生成与交付授权码">
       <ol className="list-decimal space-y-3 pl-5"><li>访问 <span className="font-mono">http://服务器IP:9093</span> 并使用授权管理员密码登录。</li><li>填写客户设备码、允许的订阅链接数量以及有效期。</li><li>生成授权码后复制给客户，不需要把私钥或授权端账号交给客户。</li><li>客户在 CMSingBox“设置 → 软件授权”中粘贴并激活。</li></ol>
-      <p className="mt-5">修改授权端密码后重启服务：</p>
-      <CodeBlock>{`systemctl restart cmsingbox-license\ncurl http://127.0.0.1:9093/healthz`}</CodeBlock>
+      <p className="mt-5">修改授权端密码后重新执行部署脚本，或在授权部署目录中重启容器：</p>
+      <CodeBlock>{`cd deploy/license\ndocker compose restart\ncurl http://127.0.0.1:9093/healthz`}</CodeBlock>
     </SectionTitle>
   </>;
 }

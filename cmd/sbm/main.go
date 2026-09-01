@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 
 	"cmsingbox.local/cmsingbox/internal/api"
 	"cmsingbox.local/cmsingbox/internal/daemon"
@@ -74,7 +75,11 @@ func main() {
 		logger.Printf("免费订阅额度配置无效: %q", FreeSubscriptionLimit)
 		os.Exit(1)
 	}
-	licenseManager, err := licensing.NewManager(dataDir, LicensePublicKey, freeLimit)
+	licensePublicKey := strings.TrimSpace(os.Getenv("CMSINGBOX_LICENSE_PUBLIC_KEY"))
+	if licensePublicKey == "" {
+		licensePublicKey = LicensePublicKey
+	}
+	licenseManager, err := licensing.NewManager(dataDir, licensePublicKey, freeLimit)
 	if err != nil {
 		logger.Printf("初始化授权模块失败: %v", err)
 		os.Exit(1)
