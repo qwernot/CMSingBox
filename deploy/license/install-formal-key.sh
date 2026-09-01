@@ -5,7 +5,8 @@ if [ "$(id -u)" -ne 0 ]; then
   echo "请使用 root 运行，或在命令前加入 sudo。" >&2
   exit 1
 fi
-if [ ! -t 0 ]; then
+decrypt_password_file=${CMSINGBOX_LICENSE_DECRYPT_PASSWORD_FILE:-}
+if [ ! -t 0 ] && [ -z "$decrypt_password_file" ]; then
   echo "本脚本需要交互输入解密口令，请从终端运行。" >&2
   exit 1
 fi
@@ -31,13 +32,21 @@ cleanup() {
 }
 trap cleanup EXIT INT TERM
 
-printf '请输入固定私钥解密口令（输入内容不会显示）: '
-stty -echo
-terminal_echo_disabled=1
-IFS= read -r decrypt_password
-stty echo
-terminal_echo_disabled=0
-printf '\n'
+if [ -n "$decrypt_password_file" ]; then
+  if [ ! -f "$decrypt_password_file" ]; then
+    echo "指定的解密口令文件不存在。" >&2
+    exit 1
+  fi
+  decrypt_password=$(tr -d '\r\n' < "$decrypt_password_file")
+else
+  printf '请输入固定私钥解密口令（输入内容不会显示）: '
+  stty -echo
+  terminal_echo_disabled=1
+  IFS= read -r decrypt_password
+  stty echo
+  terminal_echo_disabled=0
+  printf '\n'
+fi
 if [ -z "$decrypt_password" ]; then
   echo "解密口令不能为空。" >&2
   exit 1

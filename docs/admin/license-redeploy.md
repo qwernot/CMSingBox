@@ -18,6 +18,16 @@ sudo sh deploy/license/install-formal-key.sh
 
 仓库中只有 `formal-private.key.enc` 加密文件，绝不包含明文私钥。解密口令不能提交 GitHub，必须和仓库分开离线保管。只要加密文件和解密口令都保留，这对正式公私钥就不会改变。
 
+如果解密口令已按 `0600` 权限保存在 root 文件中，也可以无人值守部署：
+
+```bash
+sudo env \
+  CMSINGBOX_LICENSE_DECRYPT_PASSWORD_FILE=/root/CMSingBox-license-decryption-passphrase.txt \
+  CMSINGBOX_LICENSE_PORT=9093 \
+  CMSINGBOX_LICENSE_PASSWORD='Aa666333' \
+  sh deploy/license/install-formal-key.sh
+```
+
 如果原公钥、原私钥都已保存，推荐直接使用交互式脚本。它会依次询问端口、登录密码、公钥和私钥，并自动完成格式检查、密钥配对检查、旧密钥备份、systemd 安装、启动与健康检查：
 
 ```bash

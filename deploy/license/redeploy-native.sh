@@ -3,12 +3,16 @@ set -eu
 
 formal_public_key="EwFgPIqxKUjPY45bIUHviX4fyZLAGoww6q5QJs9fKcE="
 key_dir="/var/lib/cmsingbox-license"
+input_public_file=${CMSINGBOX_LICENSE_PUBLIC_KEY_FILE:-}
+input_private_file=${CMSINGBOX_LICENSE_PRIVATE_KEY_FILE:-}
+provided_port=${CMSINGBOX_LICENSE_PORT:-}
+provided_password=${CMSINGBOX_LICENSE_PASSWORD:-}
 
 if [ "$(id -u)" -ne 0 ]; then
   echo "请使用 root 运行，或在命令前加入 sudo。" >&2
   exit 1
 fi
-if [ ! -t 0 ]; then
+if [ ! -t 0 ] && { [ -z "$input_public_file" ] || [ -z "$input_private_file" ] || [ -z "$provided_port" ] || [ -z "$provided_password" ]; }; then
   echo "本脚本需要交互输入，请下载后从终端运行，不要直接通过 curl 管道执行。" >&2
   exit 1
 fi
@@ -28,17 +32,25 @@ cleanup() {
 }
 trap cleanup EXIT INT TERM
 
-printf '授权中心端口 [9093]: '
-IFS= read -r listen_port
-listen_port=${listen_port:-9093}
-printf '授权端登录密码 [Aa666333]: '
-stty -echo
-terminal_echo_disabled=1
-IFS= read -r admin_password
-stty echo
-terminal_echo_disabled=0
-printf '\n'
-admin_password=${admin_password:-Aa666333}
+if [ -n "$provided_port" ]; then
+  listen_port=$provided_port
+else
+  printf '授权中心端口 [9093]: '
+  IFS= read -r listen_port
+  listen_port=${listen_port:-9093}
+fi
+if [ -n "$provided_password" ]; then
+  admin_password=$provided_password
+else
+  printf '授权端登录密码 [Aa666333]: '
+  stty -echo
+  terminal_echo_disabled=1
+  IFS= read -r admin_password
+  stty echo
+  terminal_echo_disabled=0
+  printf '\n'
+  admin_password=${admin_password:-Aa666333}
+fi
 if [ "${#admin_password}" -lt 8 ]; then
   echo "授权端密码至少需要 8 位。" >&2
   exit 1
@@ -50,8 +62,6 @@ if [ "$listen_port" -lt 1 ] || [ "$listen_port" -gt 65535 ]; then
   echo "授权端端口范围必须是 1-65535。" >&2
   exit 1
 fi
-input_public_file=${CMSINGBOX_LICENSE_PUBLIC_KEY_FILE:-}
-input_private_file=${CMSINGBOX_LICENSE_PRIVATE_KEY_FILE:-}
 if [ -n "$input_public_file" ] || [ -n "$input_private_file" ]; then
   if [ ! -f "$input_public_file" ] || [ ! -f "$input_private_file" ]; then
     echo "指定的公钥或私钥文件不存在。" >&2
