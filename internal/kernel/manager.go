@@ -155,7 +155,7 @@ func (m *Manager) FetchReleases() ([]GithubRelease, error) {
 		} else {
 			if resp.StatusCode == http.StatusForbidden {
 				resp.Body.Close()
-				return nil, fmt.Errorf("GitHub API 请求被限制，请稍后重试或配置代理")
+				return m.fallbackReleases(), nil
 			}
 			if resp.StatusCode == http.StatusOK {
 				decodeErr := json.NewDecoder(resp.Body).Decode(&releases)
@@ -175,7 +175,7 @@ func (m *Manager) FetchReleases() ([]GithubRelease, error) {
 		}
 	}
 	if lastErr != nil {
-		return nil, fmt.Errorf("获取 releases 失败（已重试）: %w", lastErr)
+		return m.fallbackReleases(), nil
 	}
 
 	// 过滤稳定版本（排除 alpha, beta, rc）
@@ -188,6 +188,23 @@ func (m *Manager) FetchReleases() ([]GithubRelease, error) {
 	}
 
 	return stableReleases, nil
+}
+
+// fallbackReleases 在 GitHub API 不可用或达到匿名限额时，至少提供随包内置的稳定版本。
+func (m *Manager) fallbackReleases() []GithubRelease {
+	const version = "v1.13.21"
+	assetName := m.buildAssetName(version)
+	if assetName == "" {
+		return []GithubRelease{}
+	}
+	return []GithubRelease{{
+		TagName: version,
+		Name:    strings.TrimPrefix(version, "v"),
+		Assets: []GithubAsset{{
+			Name:               assetName,
+			BrowserDownloadURL: fmt.Sprintf("https://github.com/SagerNet/sing-box/releases/download/%s/%s", version, assetName),
+		}},
+	}}
 }
 
 // GetLatestVersion 获取最新稳定版本号

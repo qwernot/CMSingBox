@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"regexp"
 	"runtime"
 	"strings"
 	"time"
@@ -22,19 +23,19 @@ func (m *Manager) downloadAndInstall(version string) {
 		}
 	}()
 
-	// 1. 获取 releases
-	m.updateProgress("preparing", 0, "正在获取版本信息...", 0, 0)
-	releases, err := m.FetchReleases()
-	if err != nil {
-		m.setDownloadComplete("error", fmt.Sprintf("获取版本信息失败: %v", err))
+	// 1. 校验版本并直接构建官方发布地址，避免下载过程依赖 GitHub API 限额。
+	if !regexp.MustCompile(`^v\d+\.\d+\.\d+$`).MatchString(version) {
+		m.setDownloadComplete("error", "版本号格式无效")
 		return
 	}
-
-	// 2. 获取对应平台的资源信息
-	asset, err := m.getAssetInfo(releases, version)
-	if err != nil {
-		m.setDownloadComplete("error", err.Error())
+	assetName := m.buildAssetName(version)
+	if assetName == "" {
+		m.setDownloadComplete("error", fmt.Sprintf("不支持的平台: %s/%s", runtime.GOOS, runtime.GOARCH))
 		return
+	}
+	asset := &GithubAsset{
+		Name:               assetName,
+		BrowserDownloadURL: fmt.Sprintf("https://github.com/SagerNet/sing-box/releases/download/%s/%s", version, assetName),
 	}
 
 	// 3. 创建临时目录
