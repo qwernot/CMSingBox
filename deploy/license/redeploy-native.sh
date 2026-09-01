@@ -178,4 +178,4 @@ echo
 echo "迁移完成，授权中心地址: http://${server_ip}:${listen_port}"
 echo "授权公钥: $public_key"
 echo "旧文件备份目录: $backup_dir"
-echo "请继续离线保存 private.key，禁止上传 GitHub。"
+echo "请继续离线保存明文 private.key；仓库中只允许保存加密副本。"
