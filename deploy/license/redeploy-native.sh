@@ -147,7 +147,17 @@ umask 077
 systemctl daemon-reload
 systemctl enable --now cmsingbox-license.service
 
-if ! curl -fsS --max-time 10 "http://127.0.0.1:${listen_port}/healthz" >/dev/null; then
+health_ok=0
+health_attempt=0
+while [ "$health_attempt" -lt 15 ]; do
+  if curl -fsS --max-time 2 "http://127.0.0.1:${listen_port}/healthz" >/dev/null 2>&1; then
+    health_ok=1
+    break
+  fi
+  health_attempt=$((health_attempt + 1))
+  sleep 1
+done
+if [ "$health_ok" != "1" ]; then
   echo "新授权中心健康检查失败，正在恢复旧密钥。" >&2
   systemctl stop cmsingbox-license.service 2>/dev/null || true
   if [ "$had_old_key" = "1" ]; then
