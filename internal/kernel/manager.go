@@ -11,6 +11,7 @@ import (
 	"runtime"
 	"strings"
 	"sync"
+	"time"
 
 	"cmsingbox.local/cmsingbox/internal/storage"
 )
@@ -139,23 +140,42 @@ func (m *Manager) FetchReleases() ([]GithubRelease, error) {
 		apiURL = settings.GithubProxy + apiURL
 	}
 
-	resp, err := http.Get(apiURL)
-	if err != nil {
-		return nil, fmt.Errorf("获取 releases 失败: %w", err)
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode == 403 {
-		return nil, fmt.Errorf("GitHub API 请求被限制，请稍后重试或配置代理")
-	}
-
-	if resp.StatusCode != 200 {
-		return nil, fmt.Errorf("GitHub API 返回错误: %d", resp.StatusCode)
-	}
-
+	client := &http.Client{Timeout: 30 * time.Second}
 	var releases []GithubRelease
-	if err := json.NewDecoder(resp.Body).Decode(&releases); err != nil {
-		return nil, fmt.Errorf("解析 releases 失败: %w", err)
+	var lastErr error
+	for attempt := 1; attempt <= 4; attempt++ {
+		req, err := http.NewRequest(http.MethodGet, apiURL, nil)
+		if err != nil {
+			return nil, fmt.Errorf("创建 releases 请求失败: %w", err)
+		}
+		req.Header.Set("User-Agent", "CMSingBox/1")
+		resp, err := client.Do(req)
+		if err != nil {
+			lastErr = err
+		} else {
+			if resp.StatusCode == http.StatusForbidden {
+				resp.Body.Close()
+				return nil, fmt.Errorf("GitHub API 请求被限制，请稍后重试或配置代理")
+			}
+			if resp.StatusCode == http.StatusOK {
+				decodeErr := json.NewDecoder(resp.Body).Decode(&releases)
+				resp.Body.Close()
+				if decodeErr == nil {
+					lastErr = nil
+					break
+				}
+				lastErr = fmt.Errorf("解析 releases 失败: %w", decodeErr)
+			} else {
+				lastErr = fmt.Errorf("GitHub API 返回错误: %d", resp.StatusCode)
+				resp.Body.Close()
+			}
+		}
+		if attempt < 4 {
+			time.Sleep(time.Duration(attempt) * time.Second)
+		}
+	}
+	if lastErr != nil {
+		return nil, fmt.Errorf("获取 releases 失败（已重试）: %w", lastErr)
 	}
 
 	// 过滤稳定版本（排除 alpha, beta, rc）
@@ -301,6 +321,8 @@ func (m *Manager) normalizeArch(arch string) string {
 		return "arm64"
 	case "386":
 		return "386"
+	case "arm":
+		return "armv7"
 	default:
 		return arch
 	}

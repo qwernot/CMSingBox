@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+	"time"
 )
 
 // downloadAndInstall 下载并安装内核
@@ -75,7 +76,29 @@ func (m *Manager) downloadAndInstall(version string) {
 
 // downloadFile 下载文件
 func (m *Manager) downloadFile(url, dest string, totalSize int64) error {
-	resp, err := http.Get(url)
+	var lastErr error
+	for attempt := 1; attempt <= 4; attempt++ {
+		if err := m.downloadFileOnce(url, dest, totalSize); err == nil {
+			return nil
+		} else {
+			lastErr = err
+		}
+		if attempt < 4 {
+			m.updateProgress("downloading", 0, fmt.Sprintf("网络波动，正在进行第 %d 次重试...", attempt+1), 0, totalSize)
+			time.Sleep(time.Duration(attempt) * time.Second)
+		}
+	}
+	return fmt.Errorf("已重试 4 次: %w", lastErr)
+}
+
+func (m *Manager) downloadFileOnce(url, dest string, totalSize int64) error {
+	client := &http.Client{Timeout: 10 * time.Minute}
+	req, err := http.NewRequest(http.MethodGet, url, nil)
+	if err != nil {
+		return err
+	}
+	req.Header.Set("User-Agent", "CMSingBox/1")
+	resp, err := client.Do(req)
 	if err != nil {
 		return err
 	}
@@ -104,7 +127,10 @@ func (m *Manager) downloadFile(url, dest string, totalSize int64) error {
 			downloaded += int64(n)
 
 			// 更新进度
-			progress := float64(downloaded) / float64(totalSize) * 80 // 下载阶段占 80%
+			progress := float64(0)
+			if totalSize > 0 {
+				progress = float64(downloaded) / float64(totalSize) * 80 // 下载阶段占 80%
+			}
 			m.updateProgress("downloading", progress, fmt.Sprintf("下载中 %.1f%%", progress/0.8), downloaded, totalSize)
 		}
 		if err == io.EOF {
