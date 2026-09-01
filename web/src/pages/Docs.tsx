@@ -31,6 +31,7 @@ const adminSections: Section[] = [
   { id: 'license-overview', label: '授权机制', icon: KeyRound },
   { id: 'license-deploy', label: '部署授权端', icon: Server },
   { id: 'license-issue', label: '签发授权', icon: FileKey2 },
+  { id: 'license-release', label: '公钥与客户端打包', icon: Terminal },
 ];
 
 function CodeBlock({ children }: { children: string }) {
@@ -69,7 +70,7 @@ function UserContent() {
       <Note kind="success"><b>节点数不受授权限制。</b>授权仅控制后台最多可添加多少条订阅链接；普通用户连接代理时无需处理授权。</Note>
     </SectionTitle>
     <SectionTitle id="deploy" eyebrow="原生部署" title="一条命令安装 CMSingBox">
-      <p>普通 Linux 服务器可直接安装原生程序并由 systemd 管理，此命令<b>不经过 Docker，也不包含授权中心</b>。</p>
+      <p>普通 Linux 服务器可直接安装原生程序和 sing-box 基础内核并由 systemd 管理，此命令<b>不经过 Docker，也不包含授权中心</b>。</p>
       <CodeBlock>{`curl -fsSL https://raw.githubusercontent.com/qwernot/CM/main/deploy/install.sh | sudo sh`}</CodeBlock>
       <p>安装完成后访问脚本输出的 <span className="font-mono">http://设备IP:9092</span>。初始账号和密码均为 <span className="font-mono">admin</span>，首次登录后必须立即修改密码。</p>
       <CodeBlock>{`# 查看运行状态和日志
@@ -123,7 +124,7 @@ function AdminContent() {
       <Note kind="warning">后台管理端口不建议完全暴露到互联网。请使用安全组白名单、VPN、反向代理 HTTPS 或防火墙限制来源地址。</Note>
     </SectionTitle>
     <SectionTitle id="admin-deploy" eyebrow="Docker 部署" title="安装、更新和停止主程序">
-      <p>主程序默认使用 macvlan 独立局域网 IP，适合 Linux 服务器、NAS 和局域网小主机。主程序与授权中心完全分开，普通客户只需要执行下面这一条：</p>
+      <p>主程序默认使用 macvlan 独立局域网 IP，适合 Linux 服务器、NAS 和局域网小主机。部署包已带 sing-box 基础内核，后续仍可在后台更新。主程序与授权中心完全分开，普通客户只需要执行下面这一条：</p>
       <CodeBlock>{`curl -fsSL https://raw.githubusercontent.com/qwernot/CM/main/deploy/install-docker.sh | sudo env CMSINGBOX_IP=192.168.1.20 sh`}</CodeBlock>
       <p>默认安装到 <span className="font-mono">/opt/cmsingbox-docker</span>，持久数据位于其中的 <span className="font-mono">data</span>。再次执行同一命令会更新程序、重新构建容器并保留数据。</p>
       <CodeBlock>{`# 日常管理
@@ -177,6 +178,29 @@ sudo env CMSINGBOX_LICENSE_PASSWORD='Aa666333' sh deploy/license/install.sh`}</C
       <ol className="list-decimal space-y-3 pl-5"><li>访问 <span className="font-mono">http://服务器IP:9093</span> 并使用授权管理员密码登录。</li><li>填写客户设备码、允许的订阅链接数量以及有效期。</li><li>生成授权码后复制给客户，不需要把私钥或授权端账号交给客户。</li><li>客户在 CMSingBox“设置 → 软件授权”中粘贴并激活。</li></ol>
       <p className="mt-5">修改授权端密码后重新执行部署脚本，或在授权部署目录中重启容器：</p>
       <CodeBlock>{`cd deploy/license\ndocker compose restart\ncurl http://127.0.0.1:9093/healthz`}</CodeBlock>
+    </SectionTitle>
+    <SectionTitle id="license-release" eyebrow="密钥轮换" title="同步公钥并重新打包客户端">
+      <p>授权端只保存私钥，客户端只需要公钥。需要协助打包时只能提供 <span className="font-mono">public.key</span> 的一行 Base64 内容，绝不能发送 <span className="font-mono">private.key</span>。</p>
+      <CodeBlock>{`# 在授权端读取并校验公钥
+cd /root/CMSingBox/deploy/license
+sudo tr -d '\\r\\n' < license-data/public.key; echo
+test "$(sudo base64 -d license-data/public.key | wc -c)" -eq 32 && echo "公钥格式正确"`}</CodeBlock>
+      <p>客户端优先使用环境变量 <span className="font-mono">CMSINGBOX_LICENSE_PUBLIC_KEY</span>，没有设置时才使用编译进二进制的公钥。因此发布时必须同时更新二进制、原生安装脚本、Docker 安装脚本和 Compose 默认值。</p>
+      <CodeBlock>{`cd /path/to/CMSingBox
+export LICENSE_PUBLIC_KEY='新的 Base64 公钥'
+export FREE_SUBSCRIPTION_LIMIT='1'
+export VERSION='1.0.10'
+
+cd web && pnpm install --frozen-lockfile && pnpm run build && cd ..
+SKIP_FRONTEND=1 ./build.sh linux
+
+# 输出文件
+ls -lh dist/cmsingbox-linux-amd64 \\
+  dist/cmsingbox-linux-arm64 \\
+  dist/cmsingbox-linux-arm`}</CodeBlock>
+      <p>把三个客户端二进制复制到公开 CM 仓库的 <span className="font-mono">bin/</span>，但不得复制授权端、私钥或签发工具。随后重新执行客户使用的安装命令，脚本会保留数据并写入新公钥。</p>
+      <Note kind="warning">重新生成密钥后，旧私钥签发的全部授权都会失效，必须给现有客户重新签发。正式私钥至少保留两份离线备份；授权端迁移时恢复原私钥，不要重新 keygen。</Note>
+      <p>更完整的文件清单、发布检查和故障排查见私有仓库 <span className="font-mono">docs/admin/licensing.md</span>。</p>
     </SectionTitle>
   </>;
 }

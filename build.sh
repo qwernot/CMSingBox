@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # sing-box manager 构建脚本
-# 支持 Linux/macOS 的 arm64/amd64 架构
+# 支持 Linux amd64/arm64/armv7 与 macOS amd64/arm64 架构
 # 前端代码会自动嵌入到二进制文件中
 
 set -e
@@ -95,10 +95,17 @@ build_target() {
 
     info "构建 ${os}/${arch}..."
 
-    CGO_ENABLED=0 GOOS=$os GOARCH=$arch go build \
-        -ldflags "-s -w -X main.Version=${VERSION} -X 'main.BuildTime=${BUILD_TIME}' -X main.GitCommit=${GIT_COMMIT} -X main.LicensePublicKey=${LICENSE_PUBLIC_KEY} -X main.FreeSubscriptionLimit=${FREE_SUBSCRIPTION_LIMIT}" \
-        -o "${OUTPUT_DIR}/${output_name}" \
-        ./cmd/sbm/
+    if [ "$arch" = "arm" ]; then
+        CGO_ENABLED=0 GOOS=$os GOARCH=$arch GOARM=7 go build \
+            -ldflags "-s -w -X main.Version=${VERSION} -X 'main.BuildTime=${BUILD_TIME}' -X main.GitCommit=${GIT_COMMIT} -X main.LicensePublicKey=${LICENSE_PUBLIC_KEY} -X main.FreeSubscriptionLimit=${FREE_SUBSCRIPTION_LIMIT}" \
+            -o "${OUTPUT_DIR}/${output_name}" \
+            ./cmd/sbm/
+    else
+        CGO_ENABLED=0 GOOS=$os GOARCH=$arch go build \
+            -ldflags "-s -w -X main.Version=${VERSION} -X 'main.BuildTime=${BUILD_TIME}' -X main.GitCommit=${GIT_COMMIT} -X main.LicensePublicKey=${LICENSE_PUBLIC_KEY} -X main.FreeSubscriptionLimit=${FREE_SUBSCRIPTION_LIMIT}" \
+            -o "${OUTPUT_DIR}/${output_name}" \
+            ./cmd/sbm/
+    fi
 
     if [ $? -eq 0 ]; then
         local size=$(ls -lh "${OUTPUT_DIR}/${output_name}" | awk '{print $5}')
@@ -153,6 +160,7 @@ build_all() {
     # Linux
     build_target linux amd64
     build_target linux arm64
+    build_target linux arm
 
     # macOS
     build_target darwin amd64
@@ -172,6 +180,7 @@ build_linux() {
     clean
     build_target linux amd64
     build_target linux arm64
+    build_target linux arm
     info "Linux 构建完成!"
 }
 

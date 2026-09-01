@@ -4,7 +4,7 @@ services:
       context: .
       args:
         VERSION: ${CMSINGBOX_VERSION:-latest}
-        LICENSE_PUBLIC_KEY: ${CMSINGBOX_LICENSE_PUBLIC_KEY:-tmySfFXNcgxWTfs5MLotrluSbEza8oDx9tSBkXoA4Dw=}
+        LICENSE_PUBLIC_KEY: ${CMSINGBOX_LICENSE_PUBLIC_KEY:-EwFgPIqxKUjPY45bIUHviX4fyZLAGoww6q5QJs9fKcE=}
         FREE_SUBSCRIPTION_LIMIT: ${CMSINGBOX_FREE_SUBSCRIPTION_LIMIT:-1}
     container_name: cmsingbox
     restart: unless-stopped
@@ -13,7 +13,7 @@ services:
       - ./data:/data
     environment:
       - TZ=Asia/Shanghai
-      - CMSINGBOX_LICENSE_PUBLIC_KEY=${CMSINGBOX_LICENSE_PUBLIC_KEY:-tmySfFXNcgxWTfs5MLotrluSbEza8oDx9tSBkXoA4Dw=}
+      - CMSINGBOX_LICENSE_PUBLIC_KEY=${CMSINGBOX_LICENSE_PUBLIC_KEY:-EwFgPIqxKUjPY45bIUHviX4fyZLAGoww6q5QJs9fKcE=}
     networks:
       cmsingbox_lan:
         ipv4_address: ${CMSINGBOX_IP:?请设置 CMSINGBOX_IP}

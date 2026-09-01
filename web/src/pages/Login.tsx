@@ -62,7 +62,7 @@ export default function Login({ onSuccess }: LoginProps) {
 
       <div className="mt-8 flex items-center gap-4 text-slate-600"><span className="h-px flex-1 bg-white/10" /><ShieldCheck className="h-4 w-4" /><span className="h-px flex-1 bg-white/10" /></div>
       <p className="mt-4 text-center text-xs text-slate-500">安全管理入口 · 登录后可在系统设置中修改密码</p>
-      <div className="mt-4 flex items-center justify-center gap-4 text-xs"><a href="/docs/user" className="text-cyan-400/80 transition hover:text-cyan-300">用户文档</a><span className="text-white/15">·</span><a href="/docs/admin" className="text-cyan-400/80 transition hover:text-cyan-300">管理员文档</a></div>
+      <div className="mt-4 flex items-center justify-center text-xs"><a href="https://666228.xyz/CM/" target="_blank" rel="noopener noreferrer" className="text-cyan-400/80 transition hover:text-cyan-300">用户使用文档</a></div>
     </main>
     <p className="absolute bottom-5 text-[11px] tracking-wide text-white/30">CMSingBox · Private Network Console</p>
   </div>;

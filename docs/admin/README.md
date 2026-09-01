@@ -26,3 +26,4 @@ sudo env CMSINGBOX_LICENSE_PASSWORD='Aa666333' sh deploy/license/install.sh
 - 授权只限制订阅链接数量，不限制订阅内节点数和手动节点数。
 - 客户主程序只保存公钥并进行离线验签；私钥只保存在总授权中心。
 - `deploy/license/license-data/private.key` 必须离线备份，绝不能提交到 GitHub。
+- 更换密钥、同步客户端公钥和重新打包二进制，请严格按照 [授权密钥、更换公钥与客户端打包](licensing.md) 操作。
