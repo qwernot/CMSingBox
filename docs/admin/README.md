@@ -29,6 +29,14 @@ sudo sh deploy/license/redeploy-native.sh
 
 脚本会隐藏私钥输入、校验公私钥是否配对、自动备份旧密钥并在失败时回滚。完整说明见[授权中心重装与原密钥恢复](license-redeploy.md)。
 
+使用私有仓库内的固定加密正式密钥包部署：
+
+```bash
+sudo sh deploy/license/install-formal-key.sh
+```
+
+该方式每次都恢复当前正式客户端对应的同一对密钥，但仍需输入单独离线保存的解密口令。
+
 ### Docker 部署
 
 ```bash

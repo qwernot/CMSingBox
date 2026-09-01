@@ -56,7 +56,13 @@ sudo env CMSINGBOX_LICENSE_PASSWORD='Aa666333' sh deploy/license/install.sh
 sudo sh deploy/license/redeploy-native.sh
 ```
 
-授权私钥不得上传 GitHub，必须单独离线备份。普通客户不需要部署授权中心，只需要把六位设备码交给授权管理员。
+使用私有仓库内固定、加密的正式密钥包部署同一授权中心：
+
+```bash
+sudo sh deploy/license/install-formal-key.sh
+```
+
+明文授权私钥和解密口令不得上传 GitHub，必须单独离线备份；私有仓库只保存使用高强度口令加密后的固定私钥副本。普通客户不需要部署授权中心，只需要把六位设备码交给授权管理员。
 
 ## 数据目录
 

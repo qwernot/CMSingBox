@@ -50,21 +50,33 @@ if [ "$listen_port" -lt 1 ] || [ "$listen_port" -gt 65535 ]; then
   echo "授权端端口范围必须是 1-65535。" >&2
   exit 1
 fi
-printf '请输入原公钥（Base64，一行）: '
-IFS= read -r public_key
-printf '请输入原私钥（Base64，一行，输入内容不会显示）: '
-stty -echo
-terminal_echo_disabled=1
-IFS= read -r private_key
-stty echo
-terminal_echo_disabled=0
-printf '\n'
-
-public_key=$(printf '%s' "$public_key" | tr -d ' \t\r\n')
-private_key=$(printf '%s' "$private_key" | tr -d ' \t\r\n')
-printf '%s\n' "$public_key" > "$work_dir/public.key"
-printf '%s\n' "$private_key" > "$work_dir/private.key"
-unset private_key
+input_public_file=${CMSINGBOX_LICENSE_PUBLIC_KEY_FILE:-}
+input_private_file=${CMSINGBOX_LICENSE_PRIVATE_KEY_FILE:-}
+if [ -n "$input_public_file" ] || [ -n "$input_private_file" ]; then
+  if [ ! -f "$input_public_file" ] || [ ! -f "$input_private_file" ]; then
+    echo "指定的公钥或私钥文件不存在。" >&2
+    exit 1
+  fi
+  install -m 0644 "$input_public_file" "$work_dir/public.key"
+  install -m 0600 "$input_private_file" "$work_dir/private.key"
+  public_key=$(tr -d ' \t\r\n' < "$work_dir/public.key")
+  printf '%s\n' "$public_key" > "$work_dir/public.key"
+else
+  printf '请输入原公钥（Base64，一行）: '
+  IFS= read -r public_key
+  printf '请输入原私钥（Base64，一行，输入内容不会显示）: '
+  stty -echo
+  terminal_echo_disabled=1
+  IFS= read -r private_key
+  stty echo
+  terminal_echo_disabled=0
+  printf '\n'
+  public_key=$(printf '%s' "$public_key" | tr -d ' \t\r\n')
+  private_key=$(printf '%s' "$private_key" | tr -d ' \t\r\n')
+  printf '%s\n' "$public_key" > "$work_dir/public.key"
+  printf '%s\n' "$private_key" > "$work_dir/private.key"
+  unset private_key
+fi
 chmod 0600 "$work_dir/private.key"
 
 if ! base64 -d "$work_dir/public.key" > "$work_dir/public.bin" 2>/dev/null || [ "$(wc -c < "$work_dir/public.bin")" -ne 32 ]; then

@@ -13,6 +13,7 @@ license-private.key
 license-public.key
 *.license.key
 license-data/
+CMSingBox-license-decryption-passphrase.txt
 .env
 .env.*
 docs/.render-*/
