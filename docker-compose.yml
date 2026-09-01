@@ -15,10 +15,15 @@ services:
       - TZ=Asia/Shanghai
       - CMSINGBOX_LICENSE_PUBLIC_KEY=${CMSINGBOX_LICENSE_PUBLIC_KEY:-EwFgPIqxKUjPY45bIUHviX4fyZLAGoww6q5QJs9fKcE=}
     networks:
+      cmsingbox_egress:
+        gw_priority: 1
       cmsingbox_lan:
+        gw_priority: 0
         ipv4_address: ${CMSINGBOX_IP:?请设置 CMSINGBOX_IP}
 
 networks:
+  cmsingbox_egress:
+    driver: bridge
   cmsingbox_lan:
     driver: macvlan
     driver_opts:
