@@ -190,21 +190,14 @@ func (m *Manager) FetchReleases() ([]GithubRelease, error) {
 	return stableReleases, nil
 }
 
-// fallbackReleases 在 GitHub API 不可用或达到匿名限额时，至少提供随包内置的稳定版本。
+// fallbackReleases 在 GitHub API 不可用或达到匿名限额时，提供经过确认的稳定版本列表。
 func (m *Manager) fallbackReleases() []GithubRelease {
-	const version = "v1.13.21"
-	assetName := m.buildAssetName(version)
-	if assetName == "" {
-		return []GithubRelease{}
+	versions := []string{"v1.14.0", "v1.13.21", "v1.13.20", "v1.13.19"}
+	releases := make([]GithubRelease, 0, len(versions))
+	for _, version := range versions {
+		releases = append(releases, GithubRelease{TagName: version, Name: strings.TrimPrefix(version, "v")})
 	}
-	return []GithubRelease{{
-		TagName: version,
-		Name:    strings.TrimPrefix(version, "v"),
-		Assets: []GithubAsset{{
-			Name:               assetName,
-			BrowserDownloadURL: fmt.Sprintf("https://github.com/SagerNet/sing-box/releases/download/%s/%s", version, assetName),
-		}},
-	}}
+	return releases
 }
 
 // GetLatestVersion 获取最新稳定版本号

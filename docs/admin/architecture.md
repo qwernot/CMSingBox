@@ -6,7 +6,7 @@
 - Web UI：React/TypeScript 单页应用，生产构建嵌入 `sbm` 二进制。
 - DNS Proxy：独立 UDP/TCP DNS 服务，按来源 IP/CIDR 在代理与直连上游之间分流，内置 TTL 缓存和最近 1000 条查询日志。
 - Firewall Manager：生成并应用 nftables TProxy 规则及 Linux 策略路由。只有用户在界面中明确确认后才修改系统网络。
-- Sing-box：由管理服务下载、生成配置并启动；Clash API 可连接 Zashboard。
+- Sing-box：由管理服务下载、生成配置并启动；首次部署内置 1.13.21 稳定内核，后台另提供 1.14.0 最新版，Clash API 可连接 Zashboard。
 
 ## 安全默认值
 
@@ -14,7 +14,8 @@
 - 管理 API 默认全部要求 HttpOnly 会话认证。
 - 客户端订阅使用随机 24 位十六进制路径。
 - 配置备份不包含后台密码和会话。
-- DNS 服务与透明代理默认关闭；DNS 默认监听 `5353`，确认部署无冲突后可改为 `53`。
+- DNS 服务与透明代理默认关闭；DNS 默认端口为 `53`，如有冲突可在后台修改。
+- 代理控制台监听设备的 `9091` 端口并使用随机密钥保护；是否开放 Mixed 代理端口不影响控制台访问。
 - 数据文件通过临时文件、`fsync`、原子替换保存，权限为 `0600`。
 
 ## Docker 部署
@@ -24,7 +25,7 @@ docker compose build
 docker compose up -d
 ```
 
-旁路由需要 `network_mode: host`、`NET_ADMIN`、`NET_RAW` 和 `/dev/net/tun`。打开 `http://旁路由IP:9090` 完成配置。
+公开部署使用 macvlan 为容器分配独立局域网 IP，并通过 bridge 网络访问互联网；需要 `NET_ADMIN`、`NET_RAW` 和 `/dev/net/tun`。打开 `http://容器IP:9092` 完成配置，网关默认示例为 `192.168.1.1`。
 
 推荐顺序：
 

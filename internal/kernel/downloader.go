@@ -4,6 +4,8 @@ import (
 	"archive/tar"
 	"archive/zip"
 	"compress/gzip"
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
 	"io"
 	"net/http"
@@ -46,13 +48,38 @@ func (m *Manager) downloadAndInstall(version string) {
 	}
 	defer os.RemoveAll(tmpDir)
 
-	// 4. 下载文件
+	// 4. 下载文件。内置镜像版本优先走 CMSingBox 仓库，避免 GitHub API 和上游附件限流。
+	mirrored := version == "v1.14.0" || version == "v1.13.21"
+	expectedHash := ""
+	if mirrored {
+		arch := runtime.GOARCH
+		if version == "v1.13.21" {
+			asset.BrowserDownloadURL = fmt.Sprintf("https://raw.githubusercontent.com/qwernot/CM/main/bin/sing-box-linux-%s", arch)
+		} else {
+			asset.BrowserDownloadURL = fmt.Sprintf("https://raw.githubusercontent.com/qwernot/CM/main/bin/kernel/%s/sing-box-linux-%s", version, arch)
+		}
+		expectedHash = mirroredKernelSHA256(version, arch)
+		asset.Name = "sing-box"
+	}
 	downloadURL := m.buildDownloadURL(asset.BrowserDownloadURL)
 	tmpFile := filepath.Join(tmpDir, asset.Name)
 
 	m.updateProgress("downloading", 0, "正在下载...", 0, asset.Size)
 	if err := m.downloadFile(downloadURL, tmpFile, asset.Size); err != nil {
 		m.setDownloadComplete("error", fmt.Sprintf("下载失败: %v", err))
+		return
+	}
+	if mirrored {
+		if err := verifySHA256(tmpFile, expectedHash); err != nil {
+			m.setDownloadComplete("error", fmt.Sprintf("内核校验失败: %v", err))
+			return
+		}
+		m.updateProgress("installing", 90, "正在安装...", asset.Size, asset.Size)
+		if err := m.installBinary(tmpFile); err != nil {
+			m.setDownloadComplete("error", fmt.Sprintf("安装失败: %v", err))
+			return
+		}
+		m.setDownloadComplete("completed", fmt.Sprintf("sing-box %s 安装成功", version))
 		return
 	}
 
@@ -73,6 +100,38 @@ func (m *Manager) downloadAndInstall(version string) {
 
 	// 7. 完成
 	m.setDownloadComplete("completed", fmt.Sprintf("sing-box %s 安装成功", version))
+}
+
+func mirroredKernelSHA256(version, arch string) string {
+	hashes := map[string]string{
+		"v1.13.21/amd64": "ddf3a5c6f7594b18992c1b374e1694d12fe0e3e37accef7b97c6f987dd7b7479",
+		"v1.13.21/arm64": "d5669c8c7f5ee0b3cbff72a5eb91c552e503b3e6f115b5fb5eface5896b7d317",
+		"v1.13.21/arm":   "232ed3c5ef4e8d7ceae8e49b43e4111c7f86cc7efd79bfa5bd051ff085f0e00a",
+		"v1.14.0/amd64":  "57b3da14e264b6e05e8f46aee027c02d7dd7f1594d19aa39e2f4d2b9459bbd04",
+		"v1.14.0/arm64":  "4393306b90bb05502fce3b8f1754280f531c0f3ff47df9b1997b7831e3e543d0",
+		"v1.14.0/arm":    "0b918b89649814a6b9bd1cdd7f35b0bf6c38df86ad62454c41c85621c90f3b60",
+	}
+	return hashes[version+"/"+arch]
+}
+
+func verifySHA256(path, expected string) error {
+	if expected == "" {
+		return fmt.Errorf("当前平台没有预置校验值")
+	}
+	f, err := os.Open(path)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+	h := sha256.New()
+	if _, err := io.Copy(h, f); err != nil {
+		return err
+	}
+	actual := hex.EncodeToString(h.Sum(nil))
+	if actual != expected {
+		return fmt.Errorf("SHA-256 不匹配（实际 %s）", actual)
+	}
+	return nil
 }
 
 // downloadFile 下载文件

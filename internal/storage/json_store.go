@@ -150,6 +150,10 @@ func (s *JSONStore) load() error {
 		s.data.Settings.ClientConfigPath = randomClientPath()
 		needSave = true
 	}
+	if s.data.Settings.ClashAPISecret == "" {
+		s.data.Settings.ClashAPISecret = randomClientPath()
+		needSave = true
+	}
 	if s.data.Settings.BackHomePort == 0 {
 		s.data.Settings.BackHomePort = 8443
 		needSave = true

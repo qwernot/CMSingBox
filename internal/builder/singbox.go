@@ -941,24 +941,12 @@ func (b *ConfigBuilder) buildRoute() *RouteConfig {
 
 // buildExperimental 构建实验性配置
 func (b *ConfigBuilder) buildExperimental() *ExperimentalConfig {
-	// 根据局域网访问设置决定监听地址
-	listenAddr := "127.0.0.1"
-	if b.settings.AllowLAN {
-		listenAddr = "0.0.0.0"
-	}
-
-	// 只有开启局域网访问时才设置 secret
-	secret := ""
-	if b.settings.AllowLAN {
-		secret = b.settings.ClashAPISecret
-	}
-
 	return &ExperimentalConfig{
 		ClashAPI: &ClashAPIConfig{
-			ExternalController:    fmt.Sprintf("%s:%d", listenAddr, b.settings.ClashAPIPort),
+			ExternalController:    fmt.Sprintf("0.0.0.0:%d", b.settings.ClashAPIPort),
 			ExternalUI:            b.settings.ClashUIPath,
 			ExternalUIDownloadURL: "https://github.com/Zephyruso/zashboard/releases/latest/download/dist.zip",
-			Secret:                secret,
+			Secret:                b.settings.ClashAPISecret,
 			DefaultMode:           "rule",
 		},
 		CacheFile: &CacheFileConfig{

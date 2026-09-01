@@ -202,7 +202,7 @@ func DefaultSettings() *Settings {
 		WebPort:              9090,
 		ClashAPIPort:         9091,
 		ClashUIPath:          "zashboard",
-		ClashAPISecret:       "", // 默认为空，开启局域网时自动生成
+		ClashAPISecret:       randomClientPath(),
 		FinalOutbound:        "Proxy",
 		RuleSetBaseURL:       "https://github.com/lyc8503/sing-box-rules/raw/rule-set-geosite",
 		AutoApply:            true, // 默认开启自动应用

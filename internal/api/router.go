@@ -647,7 +647,8 @@ func (s *Server) updateSettings(c *gin.Context) {
 		return
 	}
 
-	// 根据局域网访问设置处理 secret
+	// 根据局域网访问设置处理代理入口认证。代理控制台始终可从管理端所在局域网访问，
+	// 因此 Clash API 密钥与 AllowLAN 解耦，并保证永不为空。
 	if settings.AllowLAN {
 		if settings.MixedAuthEnabled {
 			if settings.MixedUsername == "" {
@@ -657,13 +658,9 @@ func (s *Server) updateSettings(c *gin.Context) {
 				settings.MixedPassword = generateRandomSecret(24)
 			}
 		}
-		// 开启局域网访问且 secret 为空时，自动生成一个
-		if settings.ClashAPISecret == "" {
-			settings.ClashAPISecret = generateRandomSecret(16)
-		}
-	} else {
-		// 关闭局域网访问时，清除 secret
-		settings.ClashAPISecret = ""
+	}
+	if settings.ClashAPISecret == "" {
+		settings.ClashAPISecret = generateRandomSecret(16)
 	}
 
 	if err := s.store.UpdateSettings(&settings); err != nil {

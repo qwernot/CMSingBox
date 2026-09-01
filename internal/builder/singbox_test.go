@@ -171,3 +171,25 @@ func TestConfigBuilder_MixedInboundWithoutAuthentication(t *testing.T) {
 		t.Fatalf("unexpected unauthenticated mixed inbound: %#v", config.Inbounds[0])
 	}
 }
+
+func TestConfigBuilder_ClashAPIIsReachableAndProtected(t *testing.T) {
+	settings := storage.DefaultSettings()
+	settings.AllowLAN = false
+	settings.ClashAPIPort = 19091
+	settings.ClashAPISecret = "console-secret"
+
+	config, err := NewConfigBuilder(settings, nil, nil, nil, nil).Build()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if config.Experimental == nil || config.Experimental.ClashAPI == nil {
+		t.Fatal("Clash API configuration missing")
+	}
+	api := config.Experimental.ClashAPI
+	if api.ExternalController != "0.0.0.0:19091" {
+		t.Fatalf("external_controller = %q, want %q", api.ExternalController, "0.0.0.0:19091")
+	}
+	if api.Secret != "console-secret" {
+		t.Fatalf("secret = %q, want configured secret", api.Secret)
+	}
+}
