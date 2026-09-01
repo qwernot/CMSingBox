@@ -1,6 +1,6 @@
 FROM node:20-bookworm-slim AS frontend
 WORKDIR /src/web
-RUN corepack enable
+RUN corepack enable && corepack prepare pnpm@10.28.0 --activate
 COPY web/package.json web/pnpm-lock.yaml web/pnpm-workspace.yaml ./
 RUN pnpm install --frozen-lockfile
 COPY web/ ./
