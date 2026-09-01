@@ -198,6 +198,7 @@ interface AppState {
   updateSubscription: (id: string, name: string, url: string) => Promise<void>;
   deleteSubscription: (id: string) => Promise<void>;
   refreshSubscription: (id: string) => Promise<void>;
+  refreshAllSubscriptions: () => Promise<void>;
   toggleSubscription: (id: string, enabled: boolean) => Promise<void>;
 
   // 手动节点操作
@@ -370,6 +371,27 @@ export const useStore = create<AppState>((set, get) => ({
     } catch (error: any) {
       console.error('刷新订阅失败:', error);
       toast.error(error.response?.data?.error || '刷新订阅失败');
+    } finally {
+      set({ loading: false });
+    }
+  },
+
+  refreshAllSubscriptions: async () => {
+    set({ loading: true });
+    try {
+      const res = await subscriptionApi.refreshAll();
+      await get().fetchSubscriptions();
+      await get().fetchCountryGroups();
+      if (res.data.warning) {
+        toast.info(res.data.warning);
+      } else {
+        toast.success('全部订阅刷新成功');
+      }
+    } catch (error: any) {
+      await get().fetchSubscriptions();
+      await get().fetchCountryGroups();
+      toast.error(error.response?.data?.error || '刷新全部订阅失败');
+      throw error;
     } finally {
       set({ loading: false });
     }

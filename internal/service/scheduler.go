@@ -104,13 +104,12 @@ func (s *Scheduler) updateSubscriptions() {
 	log.Println("[Scheduler] 开始自动更新订阅...")
 
 	if err := s.subService.RefreshAll(); err != nil {
-		log.Printf("[Scheduler] 更新订阅失败: %v\n", err)
-		return
+		log.Printf("[Scheduler] 部分或全部订阅更新失败: %v\n", err)
+	} else {
+		log.Println("[Scheduler] 订阅更新完成")
 	}
 
-	log.Println("[Scheduler] 订阅更新完成")
-
-	// 调用更新回调（自动应用配置）
+	// 即使部分订阅失败，也应用已经成功刷新的订阅。
 	if s.onUpdate != nil {
 		if err := s.onUpdate(); err != nil {
 			log.Printf("[Scheduler] 自动应用配置失败: %v\n", err)

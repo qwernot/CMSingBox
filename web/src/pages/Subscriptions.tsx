@@ -21,9 +21,10 @@ import {
   SelectItem,
   Switch,
 } from '@nextui-org/react';
-import { Plus, RefreshCw, Trash2, Globe, Server, Pencil, Link, Filter as FilterIcon, ChevronDown, ChevronUp } from 'lucide-react';
+import { Plus, RefreshCw, Trash2, Globe, Server, Pencil, Link, Filter as FilterIcon, ChevronDown, ChevronUp, Clock3, ShieldAlert, Save } from 'lucide-react';
 import { useStore } from '../store';
-import { nodeApi } from '../api';
+import { licenseApi, nodeApi } from '../api';
+import { toast } from '../components/Toast';
 import type { Subscription, ManualNode, Node, Filter } from '../store';
 
 function formatBytes(bytes: number): string {
@@ -70,6 +71,13 @@ const defaultNode: Node = {
   country_emoji: '🇭🇰',
 };
 
+interface LicenseStatus {
+  is_valid: boolean;
+  max_subscriptions: number;
+  used_subscriptions: number;
+  remaining_subscriptions: number;
+}
+
 export default function Subscriptions() {
   const {
     subscriptions,
@@ -85,6 +93,7 @@ export default function Subscriptions() {
     updateSubscription,
     deleteSubscription,
     refreshSubscription,
+    refreshAllSubscriptions,
     toggleSubscription,
     addManualNode,
     updateManualNode,
@@ -93,6 +102,9 @@ export default function Subscriptions() {
     updateFilter,
     deleteFilter,
     toggleFilter,
+    settings,
+    fetchSettings,
+    updateSettings,
   } = useStore();
 
   const { isOpen: isSubOpen, onOpen: onSubOpen, onClose: onSubClose } = useDisclosure();
@@ -102,6 +114,9 @@ export default function Subscriptions() {
   const [url, setUrl] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [editingSubscription, setEditingSubscription] = useState<Subscription | null>(null);
+  const [licenseStatus, setLicenseStatus] = useState<LicenseStatus | null>(null);
+  const [refreshInterval, setRefreshInterval] = useState(60);
+  const [savingSchedule, setSavingSchedule] = useState(false);
 
   // 手动节点表单
   const [editingNode, setEditingNode] = useState<ManualNode | null>(null);
@@ -136,7 +151,34 @@ export default function Subscriptions() {
     fetchManualNodes();
     fetchCountryGroups();
     fetchFilters();
+    fetchSettings();
+    licenseApi.status().then((response) => setLicenseStatus(response.data.data)).catch(() => undefined);
   }, []);
+
+  useEffect(() => {
+    if (settings) setRefreshInterval(settings.subscription_interval ?? 60);
+  }, [settings]);
+
+  const subscriptionLimitReached = Boolean(
+    licenseStatus && licenseStatus.max_subscriptions >= 0 && licenseStatus.remaining_subscriptions <= 0,
+  );
+
+  const handleSaveSchedule = async () => {
+    if (!settings) return;
+    if (!Number.isInteger(refreshInterval) || refreshInterval < 0 || refreshInterval > 10080) {
+      toast.error('自动刷新间隔必须是 0-10080 分钟的整数');
+      return;
+    }
+    setSavingSchedule(true);
+    try {
+      await updateSettings({ ...settings, subscription_interval: refreshInterval });
+      toast.success(refreshInterval === 0 ? '订阅自动刷新已关闭' : `订阅将每 ${refreshInterval} 分钟自动刷新`);
+    } catch (error: any) {
+      toast.error(error.response?.data?.error || '保存自动刷新设置失败');
+    } finally {
+      setSavingSchedule(false);
+    }
+  };
 
   const handleOpenAddSubscription = () => {
     setEditingSubscription(null);
@@ -340,14 +382,40 @@ export default function Subscriptions() {
             color="primary"
             startContent={<Plus className="w-4 h-4" />}
             onPress={handleOpenAddSubscription}
+            isDisabled={subscriptionLimitReached}
           >
-            添加订阅
+            {subscriptionLimitReached ? `订阅已达上限 (${licenseStatus?.used_subscriptions}/${licenseStatus?.max_subscriptions})` : '添加订阅'}
           </Button>
         </div>
       </div>
 
       <Tabs aria-label="节点管理">
         <Tab key="subscriptions" title="订阅管理">
+          <Card className="mt-4 border border-blue-100 dark:border-blue-900/50">
+            <CardBody className="gap-4 lg:flex-row lg:items-end">
+              <div className="flex min-w-0 flex-1 items-start gap-3">
+                <div className="rounded-xl bg-blue-50 p-2 text-blue-600 dark:bg-blue-950/60"><Clock3 className="h-5 w-5" /></div>
+                <div>
+                  <div className="flex flex-wrap items-center gap-2"><p className="font-semibold">订阅自动刷新</p><Chip size="sm" color={refreshInterval > 0 ? 'success' : 'default'} variant="flat">{refreshInterval > 0 ? `已开启 · 每 ${refreshInterval} 分钟` : '已关闭'}</Chip></div>
+                  <p className="mt-1 text-sm text-gray-500">后台会定时拉取所有已启用订阅，刷新成功后自动应用 sing-box 配置。</p>
+                </div>
+              </div>
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
+                <Input className="sm:w-48" type="number" min={0} max={10080} label="刷新间隔（分钟）" description="0 表示关闭" value={String(refreshInterval)} onChange={(event) => setRefreshInterval(Number(event.target.value))} />
+                <Button color="primary" variant="flat" startContent={<Save className="h-4 w-4" />} isLoading={savingSchedule} onPress={handleSaveSchedule}>保存定时</Button>
+                <Button color="primary" startContent={<RefreshCw className="h-4 w-4" />} isLoading={loading} onPress={() => refreshAllSubscriptions().catch(() => undefined)}>立即刷新全部</Button>
+              </div>
+            </CardBody>
+          </Card>
+          {subscriptionLimitReached && (
+            <Card className="mt-4 border border-amber-200 bg-amber-50/70 dark:border-amber-900 dark:bg-amber-950/20">
+              <CardBody className="flex-row items-center gap-3">
+                <ShieldAlert className="h-5 w-5 shrink-0 text-amber-600" />
+                <div className="min-w-0 flex-1"><p className="font-medium text-amber-800 dark:text-amber-300">订阅链接数量已达到授权上限</p><p className="text-sm text-amber-700/80 dark:text-amber-400">当前可用 {licenseStatus?.max_subscriptions} 条、已添加 {licenseStatus?.used_subscriptions} 条；订阅内节点数量不受限制。需要更多订阅链接请先激活授权。</p></div>
+                <Button as="a" href="/settings" size="sm" color="warning" variant="flat">前往授权</Button>
+              </CardBody>
+            </Card>
+          )}
           {subscriptions.length === 0 ? (
             <Card className="mt-4">
               <CardBody className="py-12 text-center">

@@ -2,6 +2,7 @@ package service
 
 import (
 	"fmt"
+	"strings"
 	"time"
 
 	"cmsingbox.local/cmsingbox/internal/parser"
@@ -88,16 +89,21 @@ func (s *SubscriptionService) Refresh(id string) error {
 // RefreshAll 刷新所有订阅
 func (s *SubscriptionService) RefreshAll() error {
 	subs := s.store.GetSubscriptions()
+	var refreshErrors []string
 	for _, sub := range subs {
 		if sub.Enabled {
 			if err := s.refresh(&sub); err != nil {
-				// 记录错误但继续处理其他订阅
+				refreshErrors = append(refreshErrors, fmt.Sprintf("%s: %v", sub.Name, err))
 				continue
 			}
 			if err := s.store.UpdateSubscription(sub); err != nil {
+				refreshErrors = append(refreshErrors, fmt.Sprintf("%s: 保存失败: %v", sub.Name, err))
 				continue
 			}
 		}
+	}
+	if len(refreshErrors) > 0 {
+		return fmt.Errorf("%d 条订阅刷新失败: %s", len(refreshErrors), strings.Join(refreshErrors, "; "))
 	}
 	return nil
 }
