@@ -72,6 +72,11 @@ install -m 0755 "$build_dir/cmsingbox-license-server" /opt/cmsingbox-license/cms
 install -m 0755 "$build_dir/cmsingbox-license-tool" /opt/cmsingbox-license/cmsingbox-license-tool
 install -m 0644 "$script_dir/cmsingbox-license.service" /etc/systemd/system/cmsingbox-license.service
 
+if [ "${CMSINGBOX_LICENSE_INSTALL_ONLY:-0}" = "1" ]; then
+  echo "授权中心程序和 systemd 服务文件已经安装；尚未修改密钥或运行配置。"
+  exit 0
+fi
+
 legacy_key_dir="$script_dir/license-data"
 if [ ! -f /var/lib/cmsingbox-license/private.key ] && [ -f "$legacy_key_dir/private.key" ]; then
   echo "检测到 Docker 授权私钥，正在迁移到原生数据目录（原文件保留）。"

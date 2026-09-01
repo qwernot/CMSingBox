@@ -39,6 +39,17 @@ stty echo
 terminal_echo_disabled=0
 printf '\n'
 admin_password=${admin_password:-Aa666333}
+if [ "${#admin_password}" -lt 8 ]; then
+  echo "授权端密码至少需要 8 位。" >&2
+  exit 1
+fi
+case "$listen_port" in
+  ''|*[!0-9]*) echo "授权端端口必须是数字。" >&2; exit 1 ;;
+esac
+if [ "$listen_port" -lt 1 ] || [ "$listen_port" -gt 65535 ]; then
+  echo "授权端端口范围必须是 1-65535。" >&2
+  exit 1
+fi
 printf '请输入原公钥（Base64，一行）: '
 IFS= read -r public_key
 printf '请输入原私钥（Base64，一行，输入内容不会显示）: '
@@ -66,9 +77,7 @@ if ! base64 -d "$work_dir/private.key" > "$work_dir/private.bin" 2>/dev/null || 
 fi
 rm -f "$work_dir/public.bin" "$work_dir/private.bin"
 
-CMSINGBOX_LICENSE_PASSWORD="$admin_password" \
-CMSINGBOX_LICENSE_PORT="$listen_port" \
-CMSINGBOX_LICENSE_NO_START=1 \
+CMSINGBOX_LICENSE_INSTALL_ONLY=1 \
 sh "$script_dir/install-native.sh"
 
 /opt/cmsingbox-license/cmsingbox-license-tool public \
@@ -100,10 +109,20 @@ fi
 if [ -f "$key_dir/license-audit.jsonl" ]; then
   install -m 0600 "$key_dir/license-audit.jsonl" "$backup_dir/license-audit.jsonl"
 fi
+if [ -f /etc/cmsingbox-license.env ]; then
+  install -m 0600 /etc/cmsingbox-license.env "$backup_dir/cmsingbox-license.env"
+fi
 
 systemctl stop cmsingbox-license.service 2>/dev/null || true
 install -m 0600 "$work_dir/private.key" "$key_dir/private.key"
 install -m 0644 "$work_dir/public.key" "$key_dir/public.key"
+password_hash=$(printf '%s' "$admin_password" | sha256sum | awk '{print $1}')
+umask 077
+{
+  printf 'CMSINGBOX_LICENSE_PASSWORD_HASH=%s\n' "$password_hash"
+  printf 'CMSINGBOX_LICENSE_PORT=%s\n' "$listen_port"
+} > /etc/cmsingbox-license.env
+systemctl daemon-reload
 systemctl enable --now cmsingbox-license.service
 
 if ! curl -fsS --max-time 10 "http://127.0.0.1:${listen_port}/healthz" >/dev/null; then
@@ -112,8 +131,12 @@ if ! curl -fsS --max-time 10 "http://127.0.0.1:${listen_port}/healthz" >/dev/nul
   if [ "$had_old_key" = "1" ]; then
     install -m 0600 "$backup_dir/private.key" "$key_dir/private.key"
     if [ -f "$backup_dir/public.key" ]; then install -m 0644 "$backup_dir/public.key" "$key_dir/public.key"; fi
-    systemctl start cmsingbox-license.service || true
   fi
+  if [ -f "$backup_dir/cmsingbox-license.env" ]; then
+    install -m 0600 "$backup_dir/cmsingbox-license.env" /etc/cmsingbox-license.env
+  fi
+  systemctl daemon-reload
+  if [ "$had_old_key" = "1" ]; then systemctl start cmsingbox-license.service || true; fi
   exit 1
 fi
 
