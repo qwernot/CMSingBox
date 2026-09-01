@@ -41,13 +41,13 @@ export default function Layout({ children, onLogout }: LayoutProps) {
   }, [darkMode]);
   useEffect(() => setMobileOpen(false), [location.pathname]);
 
-  const clashApiPort = settings?.clash_api_port || 9091;
+  const clashApiPort = settings?.clash_api_port || 9090;
   const zashboardURL = (() => {
     const host = window.location.hostname;
     const baseUrl = `${window.location.protocol}//${host}:${clashApiPort}/ui/`;
-    const params = new URLSearchParams({ hostname: host, port: String(clashApiPort), label: 'CMSingBox' });
+    const params = new URLSearchParams({ hostname: host, port: String(clashApiPort) });
     if (settings?.clash_api_secret) params.set('secret', settings.clash_api_secret);
-    return `${baseUrl}?${params.toString()}`;
+    return `${baseUrl}#/setup?${params.toString()}`;
   })();
 
   const logout = async () => {

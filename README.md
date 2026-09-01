@@ -50,6 +50,12 @@ cd CMSingBox
 sudo env CMSINGBOX_LICENSE_PASSWORD='Aa666333' sh deploy/license/install.sh
 ```
 
+授权中心迁移或重装时，可在私有源码目录运行交互式恢复脚本，并按提示输入原公钥和原私钥：
+
+```bash
+sudo sh deploy/license/redeploy-native.sh
+```
+
 授权私钥不得上传 GitHub，必须单独离线备份。普通客户不需要部署授权中心，只需要把六位设备码交给授权管理员。
 
 ## 数据目录
@@ -63,6 +69,7 @@ sudo env CMSINGBOX_LICENSE_PASSWORD='Aa666333' sh deploy/license/install.sh
 | 9092 | TCP | CMSingBox 管理后台 |
 | 2080 | TCP | HTTP/SOCKS5 混合代理 |
 | 53 | TCP/UDP | DNS 服务，默认关闭 |
+| 9090 | TCP | 代理控制台，使用当前访问 IP 自动连接 |
 | 9093 | TCP | 独立授权中心，仅管理员部署 |
 
 ## 权利说明

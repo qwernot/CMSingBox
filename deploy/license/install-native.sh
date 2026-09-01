@@ -97,6 +97,10 @@ umask 077
 } > /etc/cmsingbox-license.env
 
 systemctl daemon-reload
+if [ "${CMSINGBOX_LICENSE_NO_START:-0}" = "1" ]; then
+  echo "授权中心程序已经安装；按要求暂不启动服务。"
+  exit 0
+fi
 systemctl enable --now cmsingbox-license.service
 
 server_ip="$(hostname -I 2>/dev/null | awk '{print $1}')"

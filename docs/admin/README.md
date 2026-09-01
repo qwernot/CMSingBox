@@ -21,6 +21,14 @@ cd CMSingBox
 sudo env CMSINGBOX_LICENSE_PASSWORD='Aa666333' sh deploy/license/install-native.sh
 ```
 
+已有原公钥和原私钥、需要迁移或重装时，使用交互式恢复脚本：
+
+```bash
+sudo sh deploy/license/redeploy-native.sh
+```
+
+脚本会隐藏私钥输入、校验公私钥是否配对、自动备份旧密钥并在失败时回滚。完整说明见[授权中心重装与原密钥恢复](license-redeploy.md)。
+
 ### Docker 部署
 
 ```bash

@@ -200,7 +200,7 @@ func DefaultSettings() *Settings {
 		ClientConfigPath:     randomClientPath(),
 		BackHomePort:         8443,
 		WebPort:              9090,
-		ClashAPIPort:         9091,
+		ClashAPIPort:         9090,
 		ClashUIPath:          "zashboard",
 		ClashAPISecret:       randomClientPath(),
 		FinalOutbound:        "Proxy",

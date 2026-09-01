@@ -855,9 +855,9 @@ export default function Settings() {
           <Input
             type="number"
             label="Clash API 端口"
-            placeholder="9091"
+            placeholder="9090"
             value={String(formData.clash_api_port)}
-            onChange={(e) => setFormData({ ...formData, clash_api_port: parseInt(e.target.value) || 9091 })}
+            onChange={(e) => setFormData({ ...formData, clash_api_port: parseInt(e.target.value) || 9090 })}
           />
           <Input
             label="漏网规则出站"

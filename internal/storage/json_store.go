@@ -159,6 +159,12 @@ func (s *JSONStore) load() error {
 		s.data.Settings.ClashAPISecret = randomClientPath()
 		needSave = true
 	}
+	// 早期版本默认使用 9091；统一迁移到控制台常用的 9090。
+	// 用户明确设置的其他端口保持不变。
+	if s.data.Settings.ClashAPIPort == 0 || s.data.Settings.ClashAPIPort == 9091 {
+		s.data.Settings.ClashAPIPort = 9090
+		needSave = true
+	}
 	if s.data.Settings.BackHomePort == 0 {
 		s.data.Settings.BackHomePort = 8443
 		needSave = true
