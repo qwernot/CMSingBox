@@ -161,12 +161,25 @@ func (pm *ProcessManager) isManagedSingboxProcess(pid int) bool {
 	if err != nil || len(cmdline) < 2 {
 		return false
 	}
-	for _, arg := range cmdline[1:] {
+	return pm.matchesManagedCommand(cmdline)
+}
+
+// matchesManagedCommand 除了 run 子命令，还必须匹配当前实例自己的配置文件。
+// 同一宿主机可能同时运行原生版和 Docker 版，不能只凭进程名接管其他实例。
+func (pm *ProcessManager) matchesManagedCommand(cmdline []string) bool {
+	hasRun := false
+	hasConfig := false
+	for i, arg := range cmdline[1:] {
 		if arg == "run" {
-			return true
+			hasRun = true
+		}
+		if (arg == "-c" || arg == "--config") && i+2 < len(cmdline) {
+			if filepath.Clean(cmdline[i+2]) == filepath.Clean(pm.configPath) {
+				hasConfig = true
+			}
 		}
 	}
-	return false
+	return hasRun && hasConfig
 }
 
 // isProcessAlive 使用 kill -0 检查进程是否存活（更可靠）
