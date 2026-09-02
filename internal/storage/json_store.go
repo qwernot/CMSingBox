@@ -177,6 +177,11 @@ func (s *JSONStore) load() error {
 		s.data.Settings.ConfigPath = "generated/config.json"
 		needSave = true
 	}
+	// 将早期版本使用的第三方规则仓库迁移到项目自有镜像。
+	if s.data.Settings.RuleSetBaseURL == "" || s.data.Settings.RuleSetBaseURL == "https://github.com/lyc8503/sing-box-rules/raw/rule-set-geosite" {
+		s.data.Settings.RuleSetBaseURL = DefaultRuleSetBaseURL
+		needSave = true
+	}
 	if needSave {
 		return s.saveInternal()
 	}

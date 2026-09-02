@@ -266,6 +266,23 @@ func (s *Server) setupRoutes() {
 		// 获取 assets 子目录
 		assetsFS, _ := fs.Sub(distFS, "assets")
 		s.router.StaticFS("/assets", http.FS(assetsFS))
+		for _, asset := range []struct {
+			path string
+			mime string
+		}{
+			{path: "favicon.svg", mime: "image/svg+xml"},
+			{path: "login-ocean.svg", mime: "image/svg+xml"},
+		} {
+			asset := asset
+			content, readErr := fs.ReadFile(distFS, asset.path)
+			if readErr != nil {
+				logger.Printf("加载前端资源 %s 失败: %v", asset.path, readErr)
+				continue
+			}
+			s.router.GET("/"+asset.path, func(c *gin.Context) {
+				c.Data(http.StatusOK, asset.mime, content)
+			})
+		}
 
 		// 处理根路径和所有未匹配的路由（SPA 支持）
 		indexHTML, _ := fs.ReadFile(distFS, "index.html")

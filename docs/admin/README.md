@@ -2,6 +2,8 @@
 
 本目录只面向 CMSingBox 项目管理员，包含系统架构、离线授权设计和总授权中心部署说明。普通用户部署与使用教程统一发布在 [CM 中文文档](https://qwernot.github.io/CM/) 中。
 
+运行时外部地址及失效影响见 [运行时外部依赖审计](runtime-dependencies.md)。
+
 ## 目录
 
 - [系统架构](architecture.md)

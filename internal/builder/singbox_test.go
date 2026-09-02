@@ -2,6 +2,7 @@ package builder
 
 import (
 	"encoding/json"
+	"strings"
 	"testing"
 
 	"cmsingbox.local/cmsingbox/internal/storage"
@@ -192,8 +193,26 @@ func TestConfigBuilder_ClashAPIIsReachableAndProtected(t *testing.T) {
 	if api.Secret != "console-secret" {
 		t.Fatalf("secret = %q, want configured secret", api.Secret)
 	}
+	if api.ExternalUIDownloadURL != "" {
+		t.Fatalf("external UI should be bundled, download URL = %q", api.ExternalUIDownloadURL)
+	}
 	if api.DefaultMode != "rule" {
 		t.Fatalf("default_mode = %q, want rule", api.DefaultMode)
+	}
+}
+
+func TestConfigBuilder_DefaultRulesUseProjectMirror(t *testing.T) {
+	config, err := NewConfigBuilder(storage.DefaultSettings(), nil, nil, nil, storage.DefaultRuleGroups()).Build()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(config.Route.RuleSet) == 0 {
+		t.Fatal("default rule sets missing")
+	}
+	for _, ruleSet := range config.Route.RuleSet {
+		if !strings.Contains(ruleSet.URL, "raw.githubusercontent.com/qwernot/CM/main/rules/") {
+			t.Fatalf("rule set still depends on a third-party mirror: %s", ruleSet.URL)
+		}
 	}
 }
 

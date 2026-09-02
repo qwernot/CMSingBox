@@ -6,6 +6,8 @@ import (
 	"time"
 )
 
+const DefaultRuleSetBaseURL = "https://raw.githubusercontent.com/qwernot/CM/main/rules/geosite"
+
 // Subscription 订阅
 type Subscription struct {
 	ID        string     `json:"id"`
@@ -204,7 +206,7 @@ func DefaultSettings() *Settings {
 		ClashUIPath:          "zashboard",
 		ClashAPISecret:       randomClientPath(),
 		FinalOutbound:        "Proxy",
-		RuleSetBaseURL:       "https://github.com/lyc8503/sing-box-rules/raw/rule-set-geosite",
+		RuleSetBaseURL:       DefaultRuleSetBaseURL,
 		AutoApply:            true, // 默认开启自动应用
 		SubscriptionInterval: 60,   // 默认 60 分钟更新一次
 		GithubProxy:          "",   // 默认不使用代理

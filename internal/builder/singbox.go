@@ -1055,11 +1055,10 @@ func (b *ConfigBuilder) buildRoute() *RouteConfig {
 func (b *ConfigBuilder) buildExperimental() *ExperimentalConfig {
 	return &ExperimentalConfig{
 		ClashAPI: &ClashAPIConfig{
-			ExternalController:    fmt.Sprintf("0.0.0.0:%d", b.settings.ClashAPIPort),
-			ExternalUI:            b.settings.ClashUIPath,
-			ExternalUIDownloadURL: "https://github.com/Zephyruso/zashboard/releases/latest/download/dist.zip",
-			Secret:                b.settings.ClashAPISecret,
-			DefaultMode:           "rule",
+			ExternalController: fmt.Sprintf("0.0.0.0:%d", b.settings.ClashAPIPort),
+			ExternalUI:         b.settings.ClashUIPath,
+			Secret:             b.settings.ClashAPISecret,
+			DefaultMode:        "rule",
 		},
 		CacheFile: &CacheFileConfig{
 			Enabled:     true,

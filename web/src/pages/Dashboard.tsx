@@ -88,17 +88,17 @@ export default function Dashboard() {
 
   return (
     <div className="space-y-6">
-      <div><p className="text-sm font-medium text-blue-600">系统总览</p><h1 className="mt-1 text-2xl font-bold tracking-tight text-slate-900 dark:text-white sm:text-3xl">欢迎使用 CMSingBox</h1><p className="mt-1 text-sm text-slate-500">实时查看服务状态、系统资源与订阅概况</p></div>
+      <div><p className="page-kicker">Overview</p><h1 className="mt-1 text-2xl font-semibold tracking-tight text-slate-900 dark:text-white sm:text-[28px]">仪表盘</h1><p className="mt-1.5 text-sm text-slate-500">实时查看服务状态、系统资源与订阅概况</p></div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card><CardBody><p className="text-sm text-gray-500">主机名</p><p className="text-xl font-bold">{systemInfo?.host?.hostname || '-'}</p><p className="text-xs text-gray-400">{systemInfo?.host?.ip_address || ''}</p></CardBody></Card>
-        <Card><CardBody><p className="text-sm text-gray-500">CPU 使用率</p><p className="text-xl font-bold">{systemInfo?.host?.cpu_percent?.toFixed(1) || '0.0'}%</p><p className="text-xs text-gray-400 truncate">{systemInfo?.host?.cpu_model || ''}</p></CardBody></Card>
-        <Card><CardBody><p className="text-sm text-gray-500">内存 / 磁盘</p><p className="text-xl font-bold">{systemInfo?.host?.memory_percent?.toFixed(1) || '0.0'}% / {systemInfo?.host?.disk_percent?.toFixed(1) || '0.0'}%</p><p className="text-xs text-gray-400">系统资源使用率</p></CardBody></Card>
-        <Card><CardBody><p className="text-sm text-gray-500">网络传输</p><p className="font-bold text-emerald-600">↑ {formatRate(systemInfo?.host?.network_up_bps)}</p><p className="font-bold text-blue-600">↓ {formatRate(systemInfo?.host?.network_down_bps)}</p></CardBody></Card>
+        <Card className="app-panel"><CardBody><p className="text-sm text-gray-500">主机名</p><p className="text-xl font-bold">{systemInfo?.host?.hostname || '-'}</p><p className="text-xs text-gray-400">{systemInfo?.host?.ip_address || ''}</p></CardBody></Card>
+        <Card className="app-panel"><CardBody><p className="text-sm text-gray-500">CPU 使用率</p><p className="text-xl font-bold">{systemInfo?.host?.cpu_percent?.toFixed(1) || '0.0'}%</p><p className="text-xs text-gray-400 truncate">{systemInfo?.host?.cpu_model || ''}</p></CardBody></Card>
+        <Card className="app-panel"><CardBody><p className="text-sm text-gray-500">内存 / 磁盘</p><p className="text-xl font-bold">{systemInfo?.host?.memory_percent?.toFixed(1) || '0.0'}% / {systemInfo?.host?.disk_percent?.toFixed(1) || '0.0'}%</p><p className="text-xs text-gray-400">系统资源使用率</p></CardBody></Card>
+        <Card className="app-panel"><CardBody><p className="text-sm text-gray-500">网络传输</p><p className="font-bold text-emerald-600">↑ {formatRate(systemInfo?.host?.network_up_bps)}</p><p className="font-bold text-blue-600">↓ {formatRate(systemInfo?.host?.network_down_bps)}</p></CardBody></Card>
       </div>
 
       {/* 服务状态卡片 */}
-      <Card className="border border-slate-200/70 shadow-sm dark:border-slate-800">
+      <Card className="app-panel">
         <CardHeader className="flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-center">
           <div className="flex items-center gap-3">
             <h2 className="text-lg font-semibold">sing-box 服务</h2>
@@ -189,7 +189,7 @@ export default function Dashboard() {
 
       {/* 统计卡片 */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card>
+        <Card className="app-panel">
           <CardBody className="flex flex-row items-center gap-4">
             <div className="p-3 bg-blue-100 dark:bg-blue-900 rounded-lg">
               <Wifi className="w-6 h-6 text-blue-600 dark:text-blue-300" />
@@ -201,7 +201,7 @@ export default function Dashboard() {
           </CardBody>
         </Card>
 
-        <Card>
+        <Card className="app-panel">
           <CardBody className="flex flex-row items-center gap-4">
             <div className="p-3 bg-green-100 dark:bg-green-900 rounded-lg">
               <HardDrive className="w-6 h-6 text-green-600 dark:text-green-300" />
@@ -213,7 +213,7 @@ export default function Dashboard() {
           </CardBody>
         </Card>
 
-        <Card>
+        <Card className="app-panel">
           <CardBody className="flex flex-row items-center gap-4">
             <div className="p-3 bg-purple-100 dark:bg-purple-900 rounded-lg">
               <Cpu className="w-6 h-6 text-purple-600 dark:text-purple-300" />
@@ -234,7 +234,7 @@ export default function Dashboard() {
           </CardBody>
         </Card>
 
-        <Card>
+        <Card className="app-panel">
           <CardBody className="flex flex-row items-center gap-4">
             <div className="p-3 bg-orange-100 dark:bg-orange-900 rounded-lg">
               <Activity className="w-6 h-6 text-orange-600 dark:text-orange-300" />
@@ -259,7 +259,7 @@ export default function Dashboard() {
       </div>
 
       {/* 订阅列表预览 */}
-      <Card>
+      <Card className="app-panel">
         <CardHeader>
           <h2 className="text-lg font-semibold">订阅概览</h2>
         </CardHeader>
