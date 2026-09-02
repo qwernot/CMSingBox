@@ -268,3 +268,17 @@ func TestConfigBuilder_UpdaterDomainsBypassFakeIP(t *testing.T) {
 		t.Fatal("DIRECT updater route missing")
 	}
 }
+
+func TestConfigBuilder_IP111UsesDirectRoute(t *testing.T) {
+	config, err := NewConfigBuilder(storage.DefaultSettings(), nil, nil, nil, nil).Build()
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, rule := range config.Route.Rules {
+		domains, ok := rule["domain_suffix"].([]string)
+		if ok && len(domains) == 1 && domains[0] == "ip111.cn" && rule["outbound"] == "DIRECT" {
+			return
+		}
+	}
+	t.Fatal("ip111.cn DIRECT rule missing")
+}

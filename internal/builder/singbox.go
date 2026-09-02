@@ -21,6 +21,10 @@ var updaterDomains = []string{
 	"release-assets.githubusercontent.com",
 }
 
+// 国内连通性检测站点应在规则模式下直连；部分代理出口会主动重置这些
+// HTTP 请求，浏览器最终只会看到代理返回的 502。
+var directConnectivityDomains = []string{"ip111.cn"}
+
 // SingBoxConfig sing-box 配置结构
 type SingBoxConfig struct {
 	Log          *LogConfig          `json:"log,omitempty"`
@@ -926,6 +930,10 @@ func (b *ConfigBuilder) buildRoute() *RouteConfig {
 	rules = append(rules, RouteRule{
 		"domain":   updaterDomains,
 		"outbound": "DIRECT",
+	})
+	rules = append(rules, RouteRule{
+		"domain_suffix": directConnectivityDomains,
+		"outbound":      "DIRECT",
 	})
 
 	// 3. 添加 hosts 域名的路由规则（优先级高，在其他规则之前）
