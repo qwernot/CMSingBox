@@ -6,6 +6,7 @@ import (
 	"net"
 	"net/url"
 	"os"
+	"runtime"
 	"sort"
 	"strconv"
 	"strings"
@@ -90,7 +91,9 @@ type Inbound struct {
 	ListenPort               int           `json:"listen_port,omitempty"`
 	Address                  []string      `json:"address,omitempty"`
 	AutoRoute                bool          `json:"auto_route,omitempty"`
+	AutoRedirect             bool          `json:"auto_redirect,omitempty"`
 	StrictRoute              bool          `json:"strict_route,omitempty"`
+	ExcludeUID               []int         `json:"exclude_uid,omitempty"`
 	Stack                    string        `json:"stack,omitempty"`
 	Sniff                    bool          `json:"sniff,omitempty"`
 	SniffOverrideDestination bool          `json:"sniff_override_destination,omitempty"`
@@ -526,6 +529,12 @@ func (b *ConfigBuilder) buildInbounds() []Inbound {
 			AutoRoute:   true,
 			StrictRoute: true,
 			Stack:       "system",
+		}
+		if runtime.GOOS == "linux" {
+			// Linux 网关上的转发流量没有本机 UID，仍会进入 TUN；排除 root
+			// 可避免 SSH、管理后台等本机服务的返回流量被再次送进代理。
+			tunInbound.AutoRedirect = true
+			tunInbound.ExcludeUID = []int{0}
 		}
 		if b.profile.LegacyInboundFields {
 			tunInbound.Sniff = true

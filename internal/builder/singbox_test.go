@@ -2,6 +2,7 @@ package builder
 
 import (
 	"encoding/json"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -66,6 +67,28 @@ func TestConfigBuilder_BuildJSON_OmitsLegacyInboundFieldsByDefault(t *testing.T)
 		if _, exists := inbound["sniff_override_destination"]; exists {
 			t.Fatalf("inbounds[%d] unexpectedly contains legacy field \"sniff_override_destination\": %#v", i, inbound["sniff_override_destination"])
 		}
+	}
+}
+
+func TestConfigBuilder_LinuxTunKeepsHostServicesOutsideProxy(t *testing.T) {
+	if runtime.GOOS != "linux" {
+		t.Skip("Linux-only TUN routing fields")
+	}
+	settings := storage.DefaultSettings()
+	settings.TunEnabled = true
+	config, err := NewConfigBuilder(settings, nil, nil, nil, nil).Build()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(config.Inbounds) < 2 {
+		t.Fatal("tun inbound missing")
+	}
+	tun, ok := config.Inbounds[1].(Inbound)
+	if !ok {
+		t.Fatalf("tun inbound type = %T", config.Inbounds[1])
+	}
+	if !tun.AutoRedirect || len(tun.ExcludeUID) != 1 || tun.ExcludeUID[0] != 0 {
+		t.Fatalf("unexpected Linux TUN host bypass: %#v", tun)
 	}
 }
 
