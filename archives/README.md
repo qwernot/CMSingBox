@@ -9,6 +9,6 @@
 校验示例：
 
 ```bash
-sha256sum -c CMSingBox-v1.0.18-source.tar.gz.sha256
-tar -xzf CMSingBox-v1.0.18-source.tar.gz
+sha256sum -c CMSingBox-v1.0.19-source.tar.gz.sha256
+tar -xzf CMSingBox-v1.0.19-source.tar.gz
 ```
