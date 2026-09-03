@@ -69,6 +69,7 @@ type DNSServer struct {
 	Path           string          `json:"path,omitempty"`
 	Detour         string          `json:"detour,omitempty"`          // 出站代理
 	DomainResolver *DomainResolver `json:"domain_resolver,omitempty"` // DNS 服务器域名的引导解析器
+	PreferGo       bool            `json:"prefer_go,omitempty"`       // local DNS 使用 resolv.conf，兼容容器内置 DNS
 	Inet4Range     string          `json:"inet4_range,omitempty"`     // FakeIP IPv4 地址池
 	Inet6Range     string          `json:"inet6_range,omitempty"`     // FakeIP IPv6 地址池
 	Predefined     map[string]any  `json:"predefined,omitempty"`      // hosts 类型专用：预定义域名映射
@@ -399,9 +400,9 @@ func (b *ConfigBuilder) buildDNS() *DNSConfig {
 	// 基础 DNS 服务器
 	servers := []DNSServer{
 		{
-			Tag:    "dns_bootstrap",
-			Type:   "udp",
-			Server: "223.5.5.5",
+			Tag:      "dns_bootstrap",
+			Type:     "local",
+			PreferGo: true,
 		},
 		parseDNSServer("dns_proxy", b.settings.ProxyDNS, "https", "Proxy"),
 		parseDNSServer("dns_direct", b.settings.DirectDNS, "udp", ""),

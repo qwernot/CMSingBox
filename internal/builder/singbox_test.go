@@ -173,6 +173,16 @@ func TestConfigBuilder_DefaultDomainResolverUsesBootstrap(t *testing.T) {
 	if got := config.Route.DefaultDomainResolver.Server; got != "dns_bootstrap" {
 		t.Fatalf("route.default_domain_resolver.server = %q, want dns_bootstrap", got)
 	}
+	var bootstrap *DNSServer
+	for i := range config.DNS.Servers {
+		if config.DNS.Servers[i].Tag == "dns_bootstrap" {
+			bootstrap = &config.DNS.Servers[i]
+			break
+		}
+	}
+	if bootstrap == nil || bootstrap.Type != "local" || !bootstrap.PreferGo || bootstrap.Server != "" {
+		t.Fatalf("dns_bootstrap = %#v, want local prefer_go without fixed server", bootstrap)
+	}
 }
 
 func TestConfigBuilder_AppliesDNSStrategyAndClashUISettings(t *testing.T) {
