@@ -143,11 +143,12 @@ type ExperimentalConfig struct {
 
 // ClashAPIConfig Clash API 配置
 type ClashAPIConfig struct {
-	ExternalController    string `json:"external_controller,omitempty"`
-	ExternalUI            string `json:"external_ui,omitempty"`
-	ExternalUIDownloadURL string `json:"external_ui_download_url,omitempty"`
-	Secret                string `json:"secret,omitempty"`
-	DefaultMode           string `json:"default_mode,omitempty"`
+	ExternalController       string `json:"external_controller,omitempty"`
+	ExternalUI               string `json:"external_ui,omitempty"`
+	ExternalUIDownloadURL    string `json:"external_ui_download_url,omitempty"`
+	ExternalUIDownloadDetour string `json:"external_ui_download_detour,omitempty"`
+	Secret                   string `json:"secret,omitempty"`
+	DefaultMode              string `json:"default_mode,omitempty"`
 }
 
 // CacheFileConfig 缓存文件配置
@@ -480,11 +481,20 @@ func (b *ConfigBuilder) buildDNS() *DNSConfig {
 	}
 
 	return &DNSConfig{
-		Strategy:         "prefer_ipv4",
+		Strategy:         normalizeDNSStrategy(b.settings.DNSStrategy),
 		Servers:          servers,
 		Rules:            rules,
 		Final:            "dns_proxy",
 		IndependentCache: false,
+	}
+}
+
+func normalizeDNSStrategy(strategy string) string {
+	switch strategy {
+	case "prefer_ipv4", "prefer_ipv6", "ipv4_only", "ipv6_only":
+		return strategy
+	default:
+		return "prefer_ipv4"
 	}
 }
 
@@ -1062,13 +1072,18 @@ func (b *ConfigBuilder) buildRoute() *RouteConfig {
 
 // buildExperimental 构建实验性配置
 func (b *ConfigBuilder) buildExperimental() *ExperimentalConfig {
+	clashAPI := &ClashAPIConfig{
+		ExternalController: fmt.Sprintf("0.0.0.0:%d", b.settings.ClashAPIPort),
+		ExternalUI:         b.settings.ClashUIPath,
+		Secret:             b.settings.ClashAPISecret,
+		DefaultMode:        "rule",
+	}
+	if strings.TrimSpace(b.settings.ClashUIURL) != "" {
+		clashAPI.ExternalUIDownloadURL = strings.TrimSpace(b.settings.ClashUIURL)
+		clashAPI.ExternalUIDownloadDetour = b.settings.ClashUIDetour
+	}
 	return &ExperimentalConfig{
-		ClashAPI: &ClashAPIConfig{
-			ExternalController: fmt.Sprintf("0.0.0.0:%d", b.settings.ClashAPIPort),
-			ExternalUI:         b.settings.ClashUIPath,
-			Secret:             b.settings.ClashAPISecret,
-			DefaultMode:        "rule",
-		},
+		ClashAPI: clashAPI,
 		CacheFile: &CacheFileConfig{
 			Enabled:     true,
 			Path:        "cache.db",

@@ -122,6 +122,7 @@ type Settings struct {
 	// DNS 配置
 	ProxyDNS          string                   `json:"proxy_dns"`       // 代理 DNS
 	DirectDNS         string                   `json:"direct_dns"`      // 直连 DNS
+	DNSStrategy       string                   `json:"dns_strategy"`    // prefer_ipv4/prefer_ipv6/ipv4_only/ipv6_only
 	Hosts             []HostEntry              `json:"hosts,omitempty"` // DNS hosts 映射
 	DNSEnabled        bool                     `json:"dns_enabled"`
 	DNSListen         string                   `json:"dns_listen"`
@@ -152,6 +153,8 @@ type Settings struct {
 	ClashAPIPort   int    `json:"clash_api_port"`   // Clash API 端口
 	ClashUIPath    string `json:"clash_ui_path"`    // zashboard 路径
 	ClashAPISecret string `json:"clash_api_secret"` // ClashAPI 密钥
+	ClashUIURL     string `json:"clash_ui_url"`     // 可选的外部 UI 下载地址
+	ClashUIDetour  string `json:"clash_ui_detour"`  // UI 下载出站
 
 	// 漏网规则
 	FinalOutbound string `json:"final_outbound"` // 默认出站
@@ -184,6 +187,7 @@ func DefaultSettings() *Settings {
 		MixedUsername:        "cmsingbox",
 		ProxyDNS:             "https://1.1.1.1/dns-query",
 		DirectDNS:            "https://dns.alidns.com/dns-query",
+		DNSStrategy:          "prefer_ipv4",
 		DNSEnabled:           false,
 		DNSListen:            "0.0.0.0:53",
 		DNSProxyUpstream:     "127.0.0.1:1053",
@@ -205,6 +209,7 @@ func DefaultSettings() *Settings {
 		ClashAPIPort:         9090,
 		ClashUIPath:          "zashboard",
 		ClashAPISecret:       randomClientPath(),
+		ClashUIDetour:        "DIRECT",
 		FinalOutbound:        "Proxy",
 		RuleSetBaseURL:       DefaultRuleSetBaseURL,
 		AutoApply:            true, // 默认开启自动应用

@@ -161,6 +161,39 @@ func TestConfigBuilder_DomainDNSServerUsesBootstrapResolver(t *testing.T) {
 	}
 }
 
+func TestConfigBuilder_AppliesDNSStrategyAndClashUISettings(t *testing.T) {
+	settings := storage.DefaultSettings()
+	settings.DNSStrategy = "ipv4_only"
+	settings.ClashUIPath = "zashboard"
+	settings.ClashUIURL = "https://example.com/zashboard.zip"
+	settings.ClashUIDetour = "Proxy"
+
+	config, err := NewConfigBuilder(settings, nil, nil, nil, nil).Build()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if config.DNS == nil || config.DNS.Strategy != "ipv4_only" {
+		t.Fatalf("dns strategy = %#v, want ipv4_only", config.DNS)
+	}
+	api := config.Experimental.ClashAPI
+	if api.ExternalUI != "zashboard" || api.ExternalUIDownloadURL != settings.ClashUIURL || api.ExternalUIDownloadDetour != "Proxy" {
+		t.Fatalf("unexpected Clash UI config: %#v", api)
+	}
+}
+
+func TestConfigBuilder_InvalidDNSStrategyFallsBackToPreferIPv4(t *testing.T) {
+	settings := storage.DefaultSettings()
+	settings.DNSStrategy = "invalid"
+
+	config, err := NewConfigBuilder(settings, nil, nil, nil, nil).Build()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if config.DNS == nil || config.DNS.Strategy != "prefer_ipv4" {
+		t.Fatalf("dns strategy = %#v, want prefer_ipv4", config.DNS)
+	}
+}
+
 func TestConfigBuilder_MixedInboundAuthentication(t *testing.T) {
 	settings := storage.DefaultSettings()
 	settings.AllowLAN = true

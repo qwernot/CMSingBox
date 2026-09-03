@@ -146,6 +146,10 @@ func (s *JSONStore) load() error {
 		s.data.Settings.ExtraOutbounds = []map[string]interface{}{}
 		needSave = true
 	}
+	if s.data.Settings.DNSStrategy == "" {
+		s.data.Settings.DNSStrategy = "prefer_ipv4"
+		needSave = true
+	}
 	if s.data.Settings.TProxyPort == 0 {
 		s.data.Settings.TProxyPort = 7893
 		s.data.Settings.BypassCIDRs = []string{"0.0.0.0/8", "10.0.0.0/8", "127.0.0.0/8", "169.254.0.0/16", "172.16.0.0/12", "192.168.0.0/16", "224.0.0.0/4"}
@@ -157,6 +161,10 @@ func (s *JSONStore) load() error {
 	}
 	if s.data.Settings.ClashAPISecret == "" {
 		s.data.Settings.ClashAPISecret = randomClientPath()
+		needSave = true
+	}
+	if s.data.Settings.ClashUIDetour == "" {
+		s.data.Settings.ClashUIDetour = "DIRECT"
 		needSave = true
 	}
 	// 早期版本默认使用 9091；统一迁移到控制台常用的 9090。

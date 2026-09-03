@@ -99,6 +99,7 @@ export interface Settings {
   mixed_password: string;
   proxy_dns: string;
   direct_dns: string;
+  dns_strategy: string;
   hosts?: HostEntry[];           // DNS hosts 映射
   dns_enabled: boolean;
   dns_listen: string;
@@ -127,6 +128,8 @@ export interface Settings {
   clash_api_port: number;
   clash_ui_path: string;
   clash_api_secret: string;        // ClashAPI 密钥
+  clash_ui_url: string;
+  clash_ui_detour: string;
   final_outbound: string;
   ruleset_base_url: string;
   auto_apply: boolean;           // 配置变更后自动应用
