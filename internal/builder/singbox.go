@@ -864,9 +864,11 @@ func (b *ConfigBuilder) buildRoute() *RouteConfig {
 	route := &RouteConfig{
 		AutoDetectInterface: true,
 		Final:               "Final",
-		// 默认域名解析器：用于解析所有 outbound 的服务器地址，避免 DNS 循环
+		// 默认域名解析器只使用独立的 IP 型引导 DNS。不能指向 dns_direct：
+		// dns_direct 可能是 DoH 域名，把它作为默认解析器会在 FakeIP 模式下
+		// 形成“解析 DoH 域名还需要调用 DoH 自身”的循环，最终导致 HTTP 502。
 		DefaultDomainResolver: &DomainResolver{
-			Server:     "dns_direct",
+			Server:     "dns_bootstrap",
 			RewriteTTL: 60,
 		},
 	}

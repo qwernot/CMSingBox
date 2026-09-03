@@ -161,6 +161,20 @@ func TestConfigBuilder_DomainDNSServerUsesBootstrapResolver(t *testing.T) {
 	}
 }
 
+func TestConfigBuilder_DefaultDomainResolverUsesBootstrap(t *testing.T) {
+	settings := storage.DefaultSettings()
+	config, err := NewConfigBuilder(settings, nil, nil, nil, nil).Build()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if config.Route == nil || config.Route.DefaultDomainResolver == nil {
+		t.Fatal("route.default_domain_resolver is missing")
+	}
+	if got := config.Route.DefaultDomainResolver.Server; got != "dns_bootstrap" {
+		t.Fatalf("route.default_domain_resolver.server = %q, want dns_bootstrap", got)
+	}
+}
+
 func TestConfigBuilder_AppliesDNSStrategyAndClashUISettings(t *testing.T) {
 	settings := storage.DefaultSettings()
 	settings.DNSStrategy = "ipv4_only"
