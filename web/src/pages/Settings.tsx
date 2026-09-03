@@ -741,7 +741,7 @@ export default function Settings() {
                 }}
               />
             </div>
-            <div className="grid md:grid-cols-2 gap-4"><Input label="代理 DNS 上游" value={formData.dns_proxy_upstream || '127.0.0.1:1053'} onChange={(e) => setFormData({ ...formData, dns_proxy_upstream: e.target.value })} /><Input label="直连 DNS 上游" value={formData.dns_direct_upstream || '223.5.5.5:53'} onChange={(e) => setFormData({ ...formData, dns_direct_upstream: e.target.value })} /></div>
+            <div className="grid md:grid-cols-2 gap-4"><Input label="代理 DNS 上游" value={formData.dns_proxy_upstream || '127.0.0.1:1053'} onChange={(e) => setFormData({ ...formData, dns_proxy_upstream: e.target.value })} /><Input label="直连 DNS 上游" value={formData.dns_direct_upstream || '192.168.1.1:53'} onChange={(e) => setFormData({ ...formData, dns_direct_upstream: e.target.value })} /></div>
             <Select label="DNS 分流模式" selectedKeys={[formData.dns_routing_mode || 'default_proxy']} onSelectionChange={(keys) => setFormData({ ...formData, dns_routing_mode: String(Array.from(keys)[0]) })}><SelectItem key="default_proxy">默认代理，例外设备直连</SelectItem><SelectItem key="default_direct">默认直连，例外设备代理</SelectItem></Select>
             <Textarea label="例外设备" description="每行一个 IP 或 CIDR，可在 # 后添加备注" value={(formData.dns_exceptions || []).join('\n')} onChange={(e) => setFormData({ ...formData, dns_exceptions: e.target.value.split('\n').map((item) => item.trim()).filter(Boolean) })} />
           </div>

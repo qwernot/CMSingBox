@@ -69,7 +69,6 @@ type DNSServer struct {
 	Path           string          `json:"path,omitempty"`
 	Detour         string          `json:"detour,omitempty"`          // 出站代理
 	DomainResolver *DomainResolver `json:"domain_resolver,omitempty"` // DNS 服务器域名的引导解析器
-	PreferGo       bool            `json:"prefer_go,omitempty"`       // local DNS 使用 resolv.conf，兼容容器内置 DNS
 	Inet4Range     string          `json:"inet4_range,omitempty"`     // FakeIP IPv4 地址池
 	Inet6Range     string          `json:"inet6_range,omitempty"`     // FakeIP IPv6 地址池
 	Predefined     map[string]any  `json:"predefined,omitempty"`      // hosts 类型专用：预定义域名映射
@@ -341,6 +340,25 @@ func parseDNSServer(tag, value, fallbackType, detour string) DNSServer {
 	return server
 }
 
+func parseBootstrapDNSServer(value string) DNSServer {
+	server := DNSServer{Tag: "dns_bootstrap", Type: "udp", Server: "192.168.1.1", ServerPort: 53}
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return server
+	}
+	if host, port, err := net.SplitHostPort(value); err == nil {
+		server.Server = strings.Trim(host, "[]")
+		if parsedPort, err := strconv.Atoi(port); err == nil {
+			server.ServerPort = parsedPort
+		}
+		return server
+	}
+	if net.ParseIP(value) != nil {
+		server.Server = value
+	}
+	return server
+}
+
 func (b *ConfigBuilder) buildAllInbounds() []interface{} {
 	built := b.buildInbounds()
 	result := make([]interface{}, 0, len(built)+len(b.settings.ExtraInbounds))
@@ -399,11 +417,7 @@ func ParseSystemHosts() map[string][]string {
 func (b *ConfigBuilder) buildDNS() *DNSConfig {
 	// 基础 DNS 服务器
 	servers := []DNSServer{
-		{
-			Tag:      "dns_bootstrap",
-			Type:     "local",
-			PreferGo: true,
-		},
+		parseBootstrapDNSServer(b.settings.DNSDirectUpstream),
 		parseDNSServer("dns_proxy", b.settings.ProxyDNS, "https", "Proxy"),
 		parseDNSServer("dns_direct", b.settings.DirectDNS, "udp", ""),
 		{

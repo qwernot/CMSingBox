@@ -191,7 +191,7 @@ func DefaultSettings() *Settings {
 		DNSEnabled:           false,
 		DNSListen:            "0.0.0.0:53",
 		DNSProxyUpstream:     "127.0.0.1:1053",
-		DNSDirectUpstream:    "223.5.5.5:53",
+		DNSDirectUpstream:    "192.168.1.1:53",
 		DNSRoutingMode:       "default_proxy",
 		DNSExceptions:        []string{},
 		FakeIPRange:          "198.18.0.0/15",

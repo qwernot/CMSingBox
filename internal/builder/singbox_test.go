@@ -180,8 +180,8 @@ func TestConfigBuilder_DefaultDomainResolverUsesBootstrap(t *testing.T) {
 			break
 		}
 	}
-	if bootstrap == nil || bootstrap.Type != "local" || !bootstrap.PreferGo || bootstrap.Server != "" {
-		t.Fatalf("dns_bootstrap = %#v, want local prefer_go without fixed server", bootstrap)
+	if bootstrap == nil || bootstrap.Type != "udp" || bootstrap.Server != "192.168.1.1" || bootstrap.ServerPort != 53 {
+		t.Fatalf("dns_bootstrap = %#v, want configured gateway DNS", bootstrap)
 	}
 }
 
