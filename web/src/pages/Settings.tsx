@@ -711,7 +711,7 @@ export default function Settings() {
           />
           <Input
             label="直连 DNS"
-            placeholder="https://dns.alidns.com/dns-query"
+            placeholder="udp://192.168.1.1:53"
             value={formData.direct_dns}
             onChange={(e) => setFormData({ ...formData, direct_dns: e.target.value })}
           />
