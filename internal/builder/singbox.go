@@ -26,6 +26,13 @@ var updaterDomains = []string{
 // HTTP 请求，浏览器最终只会看到代理返回的 502。
 var directConnectivityDomains = []string{"ip111.cn"}
 
+const (
+	embeddedDNSInboundTag = "dns-proxy-in"
+	embeddedDNSListen     = "127.0.0.1"
+	embeddedDNSListenPort = 1053
+	embeddedDNSUpstream   = "127.0.0.1:1053"
+)
+
 // SingBoxConfig sing-box 配置结构
 type SingBoxConfig struct {
 	Log          *LogConfig          `json:"log,omitempty"`
@@ -522,6 +529,17 @@ func (b *ConfigBuilder) buildInbounds() []Inbound {
 			ListenPort: b.settings.MixedPort,
 		},
 	}
+	// SmboxDNS 的默认代理上游位于本机回环地址。为它提供一个真正由
+	// sing-box 处理的 DNS 入口；53 端口仍由管理程序监听并服务局域网。
+	// 仅在使用内置上游时创建，用户改成外部 DNS 后不额外占用 1053。
+	if b.settings.DNSEnabled && strings.TrimSpace(b.settings.DNSProxyUpstream) == embeddedDNSUpstream {
+		inbounds = append(inbounds, Inbound{
+			Type:       "direct",
+			Tag:        embeddedDNSInboundTag,
+			Listen:     embeddedDNSListen,
+			ListenPort: embeddedDNSListenPort,
+		})
+	}
 	if b.settings.MixedAuthEnabled && b.settings.MixedUsername != "" && b.settings.MixedPassword != "" {
 		inbounds[0].Users = []InboundUser{{Username: b.settings.MixedUsername, Password: b.settings.MixedPassword}}
 	}
@@ -930,6 +948,12 @@ func (b *ConfigBuilder) buildRoute() *RouteConfig {
 
 	// 构建路由规则
 	var rules []RouteRule
+	if b.settings.DNSEnabled && strings.TrimSpace(b.settings.DNSProxyUpstream) == embeddedDNSUpstream {
+		rules = append(rules, RouteRule{
+			"inbound": embeddedDNSInboundTag,
+			"action":  "hijack-dns",
+		})
+	}
 
 	// 1. 添加 sniff action（嗅探流量类型，配合 FakeIP 使用）
 	rules = append(rules, RouteRule{

@@ -229,6 +229,59 @@ func TestConfigBuilder_MixedInboundWithoutAuthentication(t *testing.T) {
 	}
 }
 
+func TestConfigBuilder_EmbeddedProxyDNSInbound(t *testing.T) {
+	settings := storage.DefaultSettings()
+	settings.DNSEnabled = true
+	settings.DNSProxyUpstream = "127.0.0.1:1053"
+
+	config, err := NewConfigBuilder(settings, nil, nil, nil, nil).Build()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	foundInbound := false
+	for _, raw := range config.Inbounds {
+		inbound, ok := raw.(Inbound)
+		if !ok || inbound.Tag != embeddedDNSInboundTag {
+			continue
+		}
+		foundInbound = true
+		if inbound.Type != "direct" || inbound.Listen != "127.0.0.1" || inbound.ListenPort != 1053 {
+			t.Fatalf("unexpected embedded DNS inbound: %#v", inbound)
+		}
+	}
+	if !foundInbound {
+		t.Fatal("embedded DNS inbound missing")
+	}
+
+	foundRule := false
+	for _, rule := range config.Route.Rules {
+		if rule["inbound"] == embeddedDNSInboundTag && rule["action"] == "hijack-dns" {
+			foundRule = true
+			break
+		}
+	}
+	if !foundRule {
+		t.Fatal("embedded DNS hijack rule missing")
+	}
+}
+
+func TestConfigBuilder_ExternalProxyDNSDoesNotBindEmbeddedPort(t *testing.T) {
+	settings := storage.DefaultSettings()
+	settings.DNSEnabled = true
+	settings.DNSProxyUpstream = "192.168.1.2:5353"
+
+	config, err := NewConfigBuilder(settings, nil, nil, nil, nil).Build()
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, raw := range config.Inbounds {
+		if inbound, ok := raw.(Inbound); ok && inbound.Tag == embeddedDNSInboundTag {
+			t.Fatalf("unexpected embedded DNS inbound for external upstream: %#v", inbound)
+		}
+	}
+}
+
 func TestConfigBuilder_ClashAPIIsReachableAndProtected(t *testing.T) {
 	settings := storage.DefaultSettings()
 	settings.AllowLAN = false
