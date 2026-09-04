@@ -10,6 +10,7 @@
 - [离线授权机制](licensing.md)
 - [授权签发网站](license-server.md)
 - [授权中心重装与原密钥恢复](license-redeploy.md)
+- [源码修改、构建与发布](source-build.md)
 
 ## 总授权中心部署
 

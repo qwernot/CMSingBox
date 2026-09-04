@@ -9,6 +9,7 @@ CMSingBox 是一个面向 sing-box 的中文可视化管理平台，支持订阅
 - [Docker 独立 IP 部署](https://qwernot.github.io/CM/deploy/docker.html)
 - [RouterOS 容器部署](https://qwernot.github.io/CM/deploy/routeros.html)
 - [管理员与授权文档](docs/admin/README.md)
+- [管理员源码构建与发布](docs/admin/source-build.md)
 
 ## 原生一键部署
 
