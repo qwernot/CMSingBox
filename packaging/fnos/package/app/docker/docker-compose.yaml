@@ -8,16 +8,5 @@ services:
       TZ: Asia/Shanghai
     volumes:
       - "${TRIM_PKGVAR}/data:/data"
-    networks:
-      cmsingbox_lan:
-        ipv4_address: "${wizard_cmsingbox_ip}"
-
-networks:
-  cmsingbox_lan:
-    driver: macvlan
-    driver_opts:
-      parent: "${wizard_parent_interface}"
-    ipam:
-      config:
-        - subnet: "${wizard_subnet}"
-          gateway: "${wizard_gateway}"
+    # fnOS FPK 由生命周期脚本自动选择或创建 macvlan 网络。
+    # 此文件仅保留为源码构建参考，不由应用中心直接启动。

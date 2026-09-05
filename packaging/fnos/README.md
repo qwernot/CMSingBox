@@ -4,7 +4,7 @@
 
 ## 工作方式
 
-飞牛系统会占用宿主机的 DNS 53 端口，因此 FPK 不使用宿主机网络。安装向导会创建 Docker macvlan 网络，让 CMSingBox 容器获得独立局域网 IP：
+飞牛系统会占用宿主机的 DNS 53 端口，因此 FPK 不使用宿主机网络。安装程序会自动复用同网段的 Docker macvlan/ipvlan 网络；找不到可复用网络时才创建专用 macvlan，让 CMSingBox 容器获得独立局域网 IP：
 
 ```text
 飞牛 NAS：原来的局域网 IP，继续使用飞牛自己的 53 端口
@@ -17,14 +17,14 @@ FPK 本身与 CPU 架构无关，Docker 会自动拉取 `darkver8/cmsingbox:late
 
 ```bash
 cd /path/to/CMSingBox
-VERSION=1.0.26 sh packaging/fnos/build-fpk.sh
+VERSION=1.0.27 sh packaging/fnos/build-fpk.sh
 ```
 
 输出：
 
 ```text
-dist/fpk/CMSingBox-fnOS-1.0.26-all.fpk
-dist/fpk/CMSingBox-fnOS-1.0.26-all.fpk.sha256
+dist/fpk/CMSingBox-fnOS-1.0.27-all.fpk
+dist/fpk/CMSingBox-fnOS-1.0.27-all.fpk.sha256
 ```
 
 脚本没有检测到 `fnpack` 时，会从飞牛官方地址临时下载 `fnpack 1.2.3`。FPK 很小，第一次安装时飞牛需要联网拉取 CMSingBox 多架构镜像。
@@ -59,4 +59,4 @@ DNS 只能完成域名分流；透明代理还需要主路由把 `198.18.0.0/15`
 
 数据保存在飞牛为应用分配的 `TRIM_PKGVAR/data`，升级 FPK 或镜像不会主动删除数据。卸载前仍应在 CMSingBox 后台导出备份。
 
-镜像更新后，在飞牛应用中心停止并重新启动应用即可让 Docker 项目按新镜像重建；更新前先备份数据。
+镜像更新后，在飞牛应用中心重新安装新版 FPK 即可拉取并重建容器；更新前先备份数据。

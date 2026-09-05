@@ -1,2 +1,3 @@
 #!/bin/bash
+docker rm -f cmsingbox-fnos >/dev/null 2>&1 || true
 exit 0

@@ -5,7 +5,17 @@ is_running() {
 }
 
 case "${1:-}" in
-  start|stop)
+  start)
+    if docker container inspect cmsingbox-fnos >/dev/null 2>&1; then
+      docker start cmsingbox-fnos >/dev/null
+    else
+      . "$(dirname "$0")/network_lib"
+      deploy_cmsingbox || exit 1
+    fi
+    exit 0
+    ;;
+  stop)
+    docker stop cmsingbox-fnos >/dev/null 2>&1 || true
     exit 0
     ;;
   status)
