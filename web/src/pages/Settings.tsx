@@ -3,7 +3,7 @@ import { Card, CardBody, CardHeader, Input, Button, Switch, Chip, Modal, ModalCo
 import { Save, Download, Upload, Terminal, CheckCircle, AlertCircle, Plus, Pencil, Trash2, Server, Eye, EyeOff, Copy, RefreshCw, Wifi, ShieldCheck, Database, ShoppingCart } from 'lucide-react';
 import { useStore } from '../store';
 import type { Settings as SettingsType, HostEntry } from '../store';
-import { authApi, backupApi, daemonApi, firewallApi, kernelApi, licenseApi, maintenanceApi, settingsApi } from '../api';
+import { authApi, backupApi, firewallApi, kernelApi, licenseApi, maintenanceApi, settingsApi } from '../api';
 import { toast } from '../components/Toast';
 
 // 内核信息类型
@@ -45,8 +45,6 @@ interface LicenseStatus {
 export default function Settings() {
   const { settings, fetchSettings, updateSettings } = useStore();
   const [formData, setFormData] = useState<SettingsType | null>(null);
-  const [daemonStatus, setDaemonStatus] = useState<{ installed: boolean; running: boolean; supported: boolean } | null>(null);
-
   // 内核相关状态
   const [kernelInfo, setKernelInfo] = useState<KernelInfo | null>(null);
   const [releases, setReleases] = useState<GithubRelease[]>([]);
@@ -79,7 +77,6 @@ export default function Settings() {
 
   useEffect(() => {
     fetchSettings();
-    fetchDaemonStatus();
     fetchKernelInfo();
     fetchSystemHosts();
     firewallApi.status().then((response) => setFirewallStatus(response.data.data)).catch(() => undefined);
@@ -240,15 +237,6 @@ export default function Settings() {
     onHostModalClose();
   };
 
-  const fetchDaemonStatus = async () => {
-    try {
-      const res = await daemonApi.status();
-      setDaemonStatus(res.data.data);
-    } catch (error) {
-      console.error('获取守护进程状态失败:', error);
-    }
-  };
-
   const fetchReleases = async () => {
     try {
       const res = await kernelApi.getReleases();
@@ -403,48 +391,6 @@ export default function Settings() {
 
   const formatBytes = (value = 0) => value > 1024 * 1024 ? `${(value / 1024 / 1024).toFixed(1)} MB` : `${(value / 1024).toFixed(1)} KB`;
   const handleCleanup = async () => { if (!confirm('确定清空应用日志和临时下载文件吗？此操作不可撤销。')) return; try { const response = await maintenanceApi.clean(true, true); setCleanupPreview(response.data.data); toast.success('系统垃圾已清理'); } catch { toast.error('清理失败'); } };
-
-  const handleInstallDaemon = async () => {
-    try {
-      const res = await daemonApi.install();
-      const data = res.data;
-      if (data.action === 'exit') {
-        toast.success(data.message);
-      } else if (data.action === 'manual') {
-        toast.info(data.message);
-      } else {
-        toast.success(data.message || '服务已安装');
-      }
-      await fetchDaemonStatus();
-    } catch (error: any) {
-      console.error('安装守护进程服务失败:', error);
-      toast.error(error.response?.data?.error || '安装服务失败');
-    }
-  };
-
-  const handleUninstallDaemon = async () => {
-    if (confirm('确定要卸载后台服务吗？卸载后 CMSingBox 将不再开机自启。')) {
-      try {
-        await daemonApi.uninstall();
-        toast.success('服务已卸载');
-        await fetchDaemonStatus();
-      } catch (error: any) {
-        console.error('卸载守护进程服务失败:', error);
-        toast.error(error.response?.data?.error || '卸载服务失败');
-      }
-    }
-  };
-
-  const handleRestartDaemon = async () => {
-    try {
-      await daemonApi.restart();
-      toast.success('服务已重启');
-      await fetchDaemonStatus();
-    } catch (error: any) {
-      console.error('重启守护进程服务失败:', error);
-      toast.error(error.response?.data?.error || '重启服务失败');
-    }
-  };
 
   const openDownloadModal = async () => {
     await fetchReleases();
@@ -869,8 +815,8 @@ export default function Settings() {
       </Card>
 
       <Card>
-        <CardHeader className="flex justify-between"><div><h2 className="text-lg font-semibold">透明代理</h2><p className="text-sm text-gray-500">使用 nftables TProxy 接管旁路由转发流量</p></div><Chip color={firewallStatus?.active ? 'success' : 'default'} variant="flat">{firewallStatus?.active ? '已应用' : '未应用'}</Chip></CardHeader>
-        <CardBody className="space-y-4"><div className="flex justify-between"><div><p className="font-medium">启用透明代理配置</p><p className="text-sm text-gray-500">保存后会在 Sing-box 配置中生成 TProxy 入站</p></div><Switch isSelected={formData.transparent_proxy} onValueChange={(value) => setFormData({ ...formData, transparent_proxy: value })} /></div><Input type="number" label="TProxy 端口" value={String(formData.tproxy_port || 7893)} onChange={(e) => setFormData({ ...formData, tproxy_port: Number(e.target.value) })} /><Textarea label="绕过网段" value={(formData.bypass_cidrs || []).join('\n')} onChange={(e) => setFormData({ ...formData, bypass_cidrs: e.target.value.split('\n').map((item) => item.trim()).filter(Boolean) })} /><div className="flex gap-2"><Button color="primary" isDisabled={!formData.transparent_proxy || !firewallStatus?.supported} onPress={() => handleFirewall(true)}>应用 nftables</Button><Button color="danger" variant="flat" isDisabled={!firewallStatus?.active} onPress={() => handleFirewall(false)}>停用规则</Button>{firewallStatus && !firewallStatus.supported && <Chip color="warning" variant="flat">系统未安装 nft</Chip>}</div></CardBody>
+        <CardHeader className="flex justify-between"><div><h2 className="text-lg font-semibold">透明代理</h2><p className="text-sm text-gray-500">接管由主路由转发到本机的 TCP/UDP 流量</p></div><Chip color={firewallStatus?.active ? 'success' : 'default'} variant="flat">{firewallStatus?.active ? '规则已应用' : '规则未应用'}</Chip></CardHeader>
+        <CardBody className="space-y-4"><div className="flex justify-between"><div><p className="font-medium">启用透明代理配置</p><p className="text-sm text-gray-500">第一步保存并应用 sing-box 配置，第二步应用 nftables，最后在主路由设置下一跳</p></div><Switch isSelected={formData.transparent_proxy} onValueChange={(value) => setFormData({ ...formData, transparent_proxy: value })} /></div><Input type="number" label="TProxy 端口" value={String(formData.tproxy_port || 7893)} onChange={(e) => setFormData({ ...formData, tproxy_port: Number(e.target.value) })} /><Textarea label="绕过网段" value={(formData.bypass_cidrs || []).join('\n')} onChange={(e) => setFormData({ ...formData, bypass_cidrs: e.target.value.split('\n').map((item) => item.trim()).filter(Boolean) })} /><div className="flex gap-2"><Button color="primary" isDisabled={!formData.transparent_proxy || !firewallStatus?.supported} onPress={() => handleFirewall(true)}>应用 nftables</Button><Button color="danger" variant="flat" isDisabled={!firewallStatus?.active} onPress={() => handleFirewall(false)}>停用规则</Button>{firewallStatus && !firewallStatus.supported && <Chip color="warning" variant="flat">当前环境缺少 nftables</Chip>}</div></CardBody>
       </Card>
 
       {/* 自动化设置 */}
@@ -935,56 +881,6 @@ export default function Settings() {
       </Card>
 
       <Card><CardHeader><h2 className="text-lg font-semibold">系统清理</h2></CardHeader><CardBody><p className="text-sm text-gray-500 mb-4">可清理日志 {formatBytes(cleanupPreview?.logs_bytes)}、临时文件 {formatBytes(cleanupPreview?.temporary_bytes)}，共 {cleanupPreview?.files || 0} 个文件。</p><div><Button color="danger" variant="flat" isDisabled={!cleanupPreview || cleanupPreview.files === 0} onPress={handleCleanup}>清理日志与临时文件</Button></div></CardBody></Card>
-
-      {/* 后台服务管理 */}
-      {daemonStatus?.supported && (
-        <Card>
-          <CardHeader className="flex justify-between items-center">
-            <h2 className="text-lg font-semibold">后台服务</h2>
-            {daemonStatus && (
-              <Chip
-                color={daemonStatus.installed ? 'success' : 'default'}
-                variant="flat"
-                size="sm"
-              >
-                {daemonStatus.installed ? '已安装' : '未安装'}
-              </Chip>
-            )}
-          </CardHeader>
-          <CardBody>
-            <p className="text-sm text-gray-500 mb-4">
-              安装后台服务可让 CMSingBox 管理程序在后台运行，关闭终端后仍可访问 Web 管理界面。服务会开机自启并在崩溃后自动重启。
-            </p>
-            <div className="flex gap-2">
-              {daemonStatus?.installed ? (
-                <>
-                  <Button
-                    color="primary"
-                    variant="flat"
-                    onPress={handleRestartDaemon}
-                  >
-                    重启服务
-                  </Button>
-                  <Button
-                    color="danger"
-                    variant="flat"
-                    onPress={handleUninstallDaemon}
-                  >
-                    卸载服务
-                  </Button>
-                </>
-              ) : (
-                <Button
-                  color="primary"
-                  onPress={handleInstallDaemon}
-                >
-                  安装后台服务
-                </Button>
-              )}
-            </div>
-          </CardBody>
-        </Card>
-      )}
 
       {/* 下载内核弹窗 */}
       <Modal isOpen={showDownloadModal} onClose={() => !downloading && setShowDownloadModal(false)}>
