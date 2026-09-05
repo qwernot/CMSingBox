@@ -1,6 +1,9 @@
 #!/bin/bash
 docker rm -f cmsingbox-fnos >/dev/null 2>&1 || true
 
+ip route del "$(sed -n 's/^CMSINGBOX_IP=//p' "${TRIM_PKGETC}/network.env" 2>/dev/null | head -n 1)/32" dev cmsingbox-shim >/dev/null 2>&1 || true
+ip link del cmsingbox-shim >/dev/null 2>&1 || true
+
 network_name=""
 if [ -r "${TRIM_PKGETC}/network.env" ]; then
   network_name="$(sed -n 's/^CMSINGBOX_NETWORK=//p' "${TRIM_PKGETC}/network.env" | head -n 1)"

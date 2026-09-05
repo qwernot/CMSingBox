@@ -65,11 +65,23 @@ save_selected_network() {
   mv "$temporary_env" "${TRIM_PKGETC}/network.env"
 }
 
+ensure_host_access() {
+  host_shim="cmsingbox-shim"
+  if ! ip link show dev "$host_shim" >/dev/null 2>&1; then
+    ip link add "$host_shim" link "$CMSINGBOX_PARENT" type macvlan mode bridge || \
+      cmsingbox_fail "无法创建宿主机访问接口 $host_shim，请确认当前网卡支持 macvlan。"
+  fi
+  ip link set "$host_shim" up
+  ip route replace "$CMSINGBOX_IP/32" dev "$host_shim" || \
+    cmsingbox_fail "无法添加宿主机到 CMSingBox 的路由。"
+}
+
 deploy_cmsingbox() {
   [ -r "${TRIM_PKGETC}/network.env" ] || cmsingbox_fail "找不到 CMSingBox 网络配置。"
   . "${TRIM_PKGETC}/network.env"
   ensure_cmsingbox_network
   save_selected_network
+  ensure_host_access
 
   mkdir -p "${TRIM_PKGVAR}/data"
   docker pull darkver8/cmsingbox:latest
