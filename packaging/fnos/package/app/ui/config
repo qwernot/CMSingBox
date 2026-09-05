@@ -1,0 +1,16 @@
+{
+  ".url": {
+    "cmsingbox.Application": {
+      "title": "CMSingBox",
+      "icon": "images/icon_{0}.png",
+      "type": "url",
+      "protocol": "http",
+      "port": "9092",
+      "url": "/cgi/ThirdParty/cmsingbox/index.cgi/",
+      "allUsers": false,
+      "control": {
+        "accessPerm": "readonly"
+      }
+    }
+  }
+}

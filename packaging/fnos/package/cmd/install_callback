@@ -1,0 +1,13 @@
+#!/bin/bash
+set -eu
+
+mkdir -p "${TRIM_PKGETC}" "${TRIM_PKGVAR}/data"
+umask 022
+{
+  printf 'CMSINGBOX_IP=%s\n' "${wizard_cmsingbox_ip}"
+  printf 'CMSINGBOX_PARENT=%s\n' "${wizard_parent_interface}"
+  printf 'CMSINGBOX_SUBNET=%s\n' "${wizard_subnet}"
+  printf 'CMSINGBOX_GATEWAY=%s\n' "${wizard_gateway}"
+} > "${TRIM_PKGETC}/network.env"
+
+exit 0

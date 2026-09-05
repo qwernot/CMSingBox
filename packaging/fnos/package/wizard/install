@@ -1,0 +1,51 @@
+[
+  {
+    "stepTitle": "CMSingBox 独立网络",
+    "items": [
+      {
+        "type": "tips",
+        "helpText": "飞牛系统已经占用 DNS 53 端口。CMSingBox 将通过 Docker macvlan 使用独立局域网 IP，从而保留自己的 53 端口。独立 IP 必须与飞牛处于同一网段，并位于 DHCP 自动分配范围之外。"
+      },
+      {
+        "type": "text",
+        "field": "wizard_cmsingbox_ip",
+        "label": "CMSingBox 独立 IP",
+        "initValue": "192.168.1.20",
+        "rules": [
+          { "required": true, "message": "请输入独立 IP" },
+          { "pattern": "^([0-9]{1,3}\\.){3}[0-9]{1,3}$", "message": "请输入 IPv4 地址" }
+        ]
+      },
+      {
+        "type": "text",
+        "field": "wizard_parent_interface",
+        "label": "飞牛局域网网卡",
+        "initValue": "eth0",
+        "rules": [
+          { "required": true, "message": "请输入网卡名称，例如 eth0、enp3s0 或 bond0" },
+          { "pattern": "^[A-Za-z0-9_.:-]{1,15}$", "message": "网卡名称格式无效" }
+        ]
+      },
+      {
+        "type": "text",
+        "field": "wizard_subnet",
+        "label": "局域网网段",
+        "initValue": "192.168.1.0/24",
+        "rules": [
+          { "required": true, "message": "请输入局域网网段" },
+          { "pattern": "^([0-9]{1,3}\\.){3}[0-9]{1,3}/([0-9]|[12][0-9]|3[0-2])$", "message": "示例：192.168.1.0/24" }
+        ]
+      },
+      {
+        "type": "text",
+        "field": "wizard_gateway",
+        "label": "局域网网关",
+        "initValue": "192.168.1.1",
+        "rules": [
+          { "required": true, "message": "请输入局域网网关" },
+          { "pattern": "^([0-9]{1,3}\\.){3}[0-9]{1,3}$", "message": "请输入 IPv4 地址" }
+        ]
+      }
+    ]
+  }
+]

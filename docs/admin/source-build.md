@@ -72,6 +72,7 @@ git pull --ff-only origin main
 | `cmd/license-tool/` | 密钥和授权命令行工具 |
 | `build.sh` | 客户端跨架构构建脚本 |
 | `Dockerfile.release` | 把已构建客户端和 sing-box 内核打入正式镜像 |
+| `packaging/fnos/` | 飞牛 fnOS 手动安装 FPK 模板与构建脚本 |
 
 修改 Go 文件后执行格式化：
 
@@ -448,6 +449,16 @@ cd ..
 ### 跨架构二进制无法在构建机运行
 
 这是正常现象。amd64 机器不能直接运行 arm64/armv7 二进制。用 `file` 检查架构，并在对应真实设备或容器平台上测试。
+
+### 如何生成飞牛 fnOS 手动安装包
+
+先生成 amd64 和 arm64 客户端，再执行：
+
+```bash
+VERSION="$VERSION" sh packaging/fnos/build-fpk.sh all
+```
+
+输出位于 `dist/fpk`。FPK 使用多架构 Docker 镜像，同一个 `-all.fpk` 同时适用于 x86、ARM64 和 ARMv7 飞牛设备。完整说明见 [`packaging/fnos/README.md`](../../packaging/fnos/README.md)。
 
 ### 更新后订阅和设置消失
 

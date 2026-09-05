@@ -1,0 +1,17 @@
+appname               = cmsingbox
+version               = @VERSION@
+display_name          = CMSingBox
+desc                  = Sing-box 中文可视化管理平台。使用 Docker macvlan 独立局域网 IP，避免与飞牛系统的 DNS 53 端口冲突。
+platform              = all
+source                = thirdparty
+maintainer            = CMSingBox
+maintainer_url        = https://666228.xyz/CM/
+distributor           = CMSingBox
+distributor_url       = https://666228.xyz/CM/
+desktop_uidir         = ui
+desktop_applaunchname = cmsingbox.Application
+service_port          = 9092
+os_min_version        = 1.1.8
+ctl_stop              = true
+checkport              = false
+disable_authorization_path = true

@@ -10,6 +10,7 @@ CMSingBox 是一个面向 sing-box 的中文可视化管理平台，支持订阅
 - [RouterOS 容器部署](https://qwernot.github.io/CM/deploy/routeros.html)
 - [管理员与授权文档](docs/admin/README.md)
 - [管理员源码构建与发布](docs/admin/source-build.md)
+- [飞牛 fnOS FPK 构建](packaging/fnos/README.md)
 
 ## 原生一键部署
 
