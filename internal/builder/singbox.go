@@ -586,7 +586,12 @@ func (b *ConfigBuilder) buildInbounds() []Inbound {
 		inbounds = append(inbounds, tunInbound)
 	}
 	if b.settings.TransparentProxy {
-		inbounds = append(inbounds, Inbound{Type: "tproxy", Tag: "tproxy-in", Listen: "0.0.0.0", ListenPort: b.settings.TProxyPort, Sniff: true, SniffOverrideDestination: true})
+		tproxyInbound := Inbound{Type: "tproxy", Tag: "tproxy-in", Listen: "0.0.0.0", ListenPort: b.settings.TProxyPort}
+		if b.profile.LegacyInboundFields {
+			tproxyInbound.Sniff = true
+			tproxyInbound.SniffOverrideDestination = true
+		}
+		inbounds = append(inbounds, tproxyInbound)
 	}
 
 	return inbounds

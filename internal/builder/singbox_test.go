@@ -128,6 +128,34 @@ func TestConfigBuilder_WithSingBoxVersion_KeepsLegacyInboundFieldsForPre113(t *t
 	}
 }
 
+func TestConfigBuilder_WithSingBoxVersion_RemovesLegacyTProxyFieldsFor113OrLater(t *testing.T) {
+	settings := storage.DefaultSettings()
+	settings.TransparentProxy = true
+
+	configJSON, err := NewConfigBuilder(settings, nil, nil, nil, nil).
+		WithSingBoxVersion("sing-box version 1.13.21").
+		BuildJSON()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var config map[string]any
+	if err := json.Unmarshal([]byte(configJSON), &config); err != nil {
+		t.Fatal(err)
+	}
+	inbounds := config["inbounds"].([]any)
+	tproxy := inbounds[len(inbounds)-1].(map[string]any)
+	if tproxy["type"] != "tproxy" {
+		t.Fatalf("last inbound type = %#v, want tproxy", tproxy["type"])
+	}
+	if _, exists := tproxy["sniff"]; exists {
+		t.Fatalf("tproxy inbound unexpectedly contains legacy sniff field: %#v", tproxy)
+	}
+	if _, exists := tproxy["sniff_override_destination"]; exists {
+		t.Fatalf("tproxy inbound unexpectedly contains legacy sniff_override_destination field: %#v", tproxy)
+	}
+}
+
 func TestCompatProfileFromVersion_UsesModernProfileFor113OrLater(t *testing.T) {
 	profile := CompatProfileFromVersion("sing-box version 1.13.5")
 	if profile.LegacyInboundFields {
