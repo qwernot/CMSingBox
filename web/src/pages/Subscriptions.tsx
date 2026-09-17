@@ -463,6 +463,7 @@ export default function Subscriptions() {
                         <p className="text-sm text-gray-500">
                           {mn.node.type} · {mn.node.server}:{mn.node.server_port}
                         </p>
+                        {mn.node.extra?.transport?.type === 'kcp' && <p className="text-xs text-amber-600">KCP 不受 sing-box 支持，已从运行配置中跳过；请删除并换用其他传输协议。</p>}
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
@@ -485,6 +486,7 @@ export default function Subscriptions() {
                       </Button>
                       <Switch
                         isSelected={mn.enabled}
+                        isDisabled={mn.node.extra?.transport?.type === 'kcp'}
                         onValueChange={() => handleToggleNode(mn)}
                       />
                     </div>
