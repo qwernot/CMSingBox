@@ -1126,6 +1126,13 @@ func (b *ConfigBuilder) buildRoute() *RouteConfig {
 		}
 	}
 
+	// 地理规则集更新通常滞后于新注册的 .cn 域名。未命中用户规则及
+	// 中国地区规则组时，仍将 .cn 域名直连，避免国内站点误走海外出口。
+	rules = append(rules, RouteRule{
+		"domain_suffix": []string{"cn"},
+		"outbound":      "DIRECT",
+	})
+
 	route.Rules = rules
 
 	return route

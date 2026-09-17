@@ -476,3 +476,27 @@ func TestConfigBuilder_IP111UsesDirectRoute(t *testing.T) {
 	}
 	t.Fatal("ip111.cn DIRECT rule missing")
 }
+
+func TestConfigBuilder_CNDomainsDirectFallbackAfterUserRules(t *testing.T) {
+	rules := []storage.Rule{{Name: "用户 .cn 规则", RuleType: "domain_suffix", Values: []string{"cn"}, Outbound: "Proxy", Enabled: true}}
+	config, err := NewConfigBuilder(storage.DefaultSettings(), nil, nil, rules, nil).Build()
+	if err != nil {
+		t.Fatal(err)
+	}
+	userIndex, fallbackIndex := -1, -1
+	for i, rule := range config.Route.Rules {
+		suffixes, ok := rule["domain_suffix"].([]string)
+		if !ok || len(suffixes) != 1 || suffixes[0] != "cn" {
+			continue
+		}
+		if rule["outbound"] == "Proxy" {
+			userIndex = i
+		}
+		if rule["outbound"] == "DIRECT" {
+			fallbackIndex = i
+		}
+	}
+	if userIndex < 0 || fallbackIndex <= userIndex {
+		t.Fatalf(".cn fallback must follow user rules: user=%d fallback=%d", userIndex, fallbackIndex)
+	}
+}
