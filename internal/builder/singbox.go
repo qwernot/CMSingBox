@@ -443,11 +443,7 @@ func (b *ConfigBuilder) buildDNS() *DNSConfig {
 			Action: "route",
 		},
 		{
-			RuleSet: []string{"geosite-category-ads-all"},
-			Action:  "reject",
-		},
-		{
-			RuleSet: []string{"geosite-geolocation-cn"},
+			RuleSet: []string{"geosite-cn"},
 			Server:  "dns_direct",
 			Action:  "route",
 		},

@@ -389,6 +389,17 @@ func TestConfigBuilder_DefaultRulesUseProjectMirror(t *testing.T) {
 			t.Fatalf("rule set still depends on a third-party mirror: %s", ruleSet.URL)
 		}
 	}
+	known := make(map[string]bool, len(config.Route.RuleSet))
+	for _, ruleSet := range config.Route.RuleSet {
+		known[ruleSet.Tag] = true
+	}
+	for _, rule := range config.DNS.Rules {
+		for _, tag := range rule.RuleSet {
+			if !known[tag] {
+				t.Fatalf("DNS references missing rule-set %q", tag)
+			}
+		}
+	}
 }
 
 func TestConfigBuilder_DuplicateNodeTagsBecomeUnique(t *testing.T) {
