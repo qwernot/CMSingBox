@@ -129,6 +129,7 @@ export interface Settings {
   clash_ui_path: string;
   clash_api_secret: string;        // ClashAPI 密钥
   clash_ui_url: string;
+  clash_ui_revision: number;
   clash_ui_detour: string;
   final_outbound: string;
   ruleset_base_url: string;

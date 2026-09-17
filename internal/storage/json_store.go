@@ -159,10 +159,7 @@ func (s *JSONStore) load() error {
 		s.data.Settings.ClientConfigPath = randomClientPath()
 		needSave = true
 	}
-	if s.data.Settings.ClashAPISecret == "" {
-		s.data.Settings.ClashAPISecret = randomClientPath()
-		needSave = true
-	}
+	// 空密钥是合法配置：允许代理控制面板无需密码访问。
 	if s.data.Settings.ClashUIDetour == "" {
 		s.data.Settings.ClashUIDetour = "DIRECT"
 		needSave = true

@@ -291,6 +291,9 @@ export default function Subscriptions() {
     }
   };
 
+  const updateNodeExtra = (key: string, value: unknown) =>
+    setNodeForm((current) => ({ ...current, extra: { ...current.extra, [key]: value } }));
+
   const handleDeleteNode = async (id: string) => {
     if (confirm('确定要删除这个节点吗？')) {
       await deleteManualNode(id);
@@ -744,6 +747,11 @@ export default function Subscriptions() {
                         onChange={(e) => setNodeForm({ ...nodeForm, server_port: parseInt(e.target.value) || 443 })}
                       />
                     </div>
+                    {nodeForm.type === 'shadowsocks' && <div className="grid gap-4 sm:grid-cols-2"><Input label="加密方式" placeholder="2022-blake3-aes-128-gcm" value={String(nodeForm.extra?.method || '')} onChange={(e) => updateNodeExtra('method', e.target.value)} /><Input label="节点密码" type="password" value={String(nodeForm.extra?.password || '')} onChange={(e) => updateNodeExtra('password', e.target.value)} /></div>}
+                    {['vmess', 'vless', 'tuic'].includes(nodeForm.type) && <Input label="UUID" value={String(nodeForm.extra?.uuid || '')} onChange={(e) => updateNodeExtra('uuid', e.target.value)} />}
+                    {['trojan', 'hysteria2', 'tuic'].includes(nodeForm.type) && <Input label="节点密码" type="password" value={String(nodeForm.extra?.password || '')} onChange={(e) => updateNodeExtra('password', e.target.value)} />}
+                    {['vmess', 'vless', 'trojan', 'hysteria2', 'tuic'].includes(nodeForm.type) && <Input label="TLS 服务器名称（可选）" value={String((nodeForm.extra?.tls as Record<string, unknown> | undefined)?.server_name || '')} onChange={(e) => updateNodeExtra('tls', { ...((nodeForm.extra?.tls as Record<string, unknown>) || {}), enabled: true, server_name: e.target.value || nodeForm.server })} />}
+                    {nodeForm.type === 'socks' && <div className="grid gap-4 sm:grid-cols-2"><Input label="用户名（可选）" value={String(nodeForm.extra?.username || '')} onChange={(e) => updateNodeExtra('username', e.target.value)} /><Input label="密码（可选）" type="password" value={String(nodeForm.extra?.password || '')} onChange={(e) => updateNodeExtra('password', e.target.value)} /></div>}
                   </div>
                 </AccordionItem>
               </Accordion>

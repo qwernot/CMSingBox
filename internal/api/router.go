@@ -671,8 +671,7 @@ func (s *Server) updateSettings(c *gin.Context) {
 		return
 	}
 
-	// HTTP / SOCKS5 是网关的基础入口，始终保持局域网可访问。代理控制台也始终可从管理端所在局域网访问，
-	// 因此 Clash API 密钥与 AllowLAN 解耦，并保证永不为空。
+	// HTTP / SOCKS5 是网关的基础入口，始终保持局域网可访问。
 	settings.AllowLAN = true
 	if settings.AllowLAN {
 		if settings.MixedAuthEnabled {
@@ -683,9 +682,6 @@ func (s *Server) updateSettings(c *gin.Context) {
 				settings.MixedPassword = generateRandomSecret(24)
 			}
 		}
-	}
-	if settings.ClashAPISecret == "" {
-		settings.ClashAPISecret = generateRandomSecret(16)
 	}
 
 	if err := s.store.UpdateSettings(&settings); err != nil {
@@ -778,6 +774,9 @@ func (s *Server) applyConfig(c *gin.Context) {
 
 func (s *Server) buildConfig() (string, error) {
 	settings := s.store.GetSettings()
+	if err := s.ensureBackHomeCertificate(settings); err != nil {
+		return "", err
+	}
 	nodes := s.store.GetAllNodes()
 	filters := s.store.GetFilters()
 	rules := s.store.GetRules()
@@ -1498,6 +1497,10 @@ func (s *Server) addManualNode(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
+	if err := validateManualNode(&node); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
 
 	// 生成 ID
 	node.ID = uuid.New().String()
@@ -1521,6 +1524,10 @@ func (s *Server) updateManualNode(c *gin.Context) {
 
 	var node storage.ManualNode
 	if err := c.ShouldBindJSON(&node); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	if err := validateManualNode(&node); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}

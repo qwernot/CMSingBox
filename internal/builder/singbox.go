@@ -782,7 +782,15 @@ func (b *ConfigBuilder) buildOutbounds() []Outbound {
 		outbounds = append(outbounds, Outbound(extra))
 	}
 	if b.settings.BackHomeEnabled && b.settings.BackHomeServer != "" {
-		outbounds = append(outbounds, Outbound{"type": "hysteria2", "tag": "回家", "server": b.settings.BackHomeServer, "server_port": b.settings.BackHomePort, "password": b.settings.BackHomePassword, "tls": map[string]interface{}{"enabled": true, "server_name": b.settings.BackHomeServer}})
+		tls := map[string]interface{}{"enabled": true, "server_name": b.settings.BackHomeServer}
+		if certificate, err := os.ReadFile(b.settings.BackHomeCertPath); err == nil {
+			tls["certificate"] = string(certificate)
+		} else {
+			// Legacy configurations may still point to an unavailable certificate.
+			// The server-side check will report the missing file before deployment.
+			tls["insecure"] = true
+		}
+		outbounds = append(outbounds, Outbound{"type": "hysteria2", "tag": "回家", "server": b.settings.BackHomeServer, "server_port": b.settings.BackHomePort, "password": b.settings.BackHomePassword, "tls": tls})
 	}
 
 	return outbounds
@@ -1118,9 +1126,14 @@ func (b *ConfigBuilder) buildRoute() *RouteConfig {
 
 // buildExperimental 构建实验性配置
 func (b *ConfigBuilder) buildExperimental() *ExperimentalConfig {
+	uiPath := b.settings.ClashUIPath
+	if strings.TrimSpace(b.settings.ClashUIURL) != "" {
+		// Never let an optional download replace the bundled control panel.
+		uiPath = fmt.Sprintf("custom-ui-%d", b.settings.ClashUIRevision)
+	}
 	clashAPI := &ClashAPIConfig{
 		ExternalController: fmt.Sprintf("0.0.0.0:%d", b.settings.ClashAPIPort),
-		ExternalUI:         b.settings.ClashUIPath,
+		ExternalUI:         uiPath,
 		Secret:             b.settings.ClashAPISecret,
 		DefaultMode:        "rule",
 	}

@@ -34,6 +34,7 @@ func TestConfigBuilder_NodeToOutbound_TUICEnsuresTLS(t *testing.T) {
 
 func TestConfigBuilder_BuildJSON_OmitsLegacyInboundFieldsByDefault(t *testing.T) {
 	settings := storage.DefaultSettings()
+	settings.DNSEnabled = false
 	settings.TunEnabled = true
 
 	b := NewConfigBuilder(settings, nil, nil, nil, nil)
@@ -75,6 +76,7 @@ func TestConfigBuilder_LinuxTunKeepsHostServicesOutsideProxy(t *testing.T) {
 		t.Skip("Linux-only TUN routing fields")
 	}
 	settings := storage.DefaultSettings()
+	settings.DNSEnabled = false
 	settings.TunEnabled = true
 	config, err := NewConfigBuilder(settings, nil, nil, nil, nil).Build()
 	if err != nil {
@@ -94,6 +96,7 @@ func TestConfigBuilder_LinuxTunKeepsHostServicesOutsideProxy(t *testing.T) {
 
 func TestConfigBuilder_WithSingBoxVersion_KeepsLegacyInboundFieldsForPre113(t *testing.T) {
 	settings := storage.DefaultSettings()
+	settings.DNSEnabled = false
 	settings.TunEnabled = true
 
 	b := NewConfigBuilder(settings, nil, nil, nil, nil).
@@ -228,7 +231,7 @@ func TestConfigBuilder_AppliesDNSStrategyAndClashUISettings(t *testing.T) {
 		t.Fatalf("dns strategy = %#v, want ipv4_only", config.DNS)
 	}
 	api := config.Experimental.ClashAPI
-	if api.ExternalUI != "zashboard" || api.ExternalUIDownloadURL != settings.ClashUIURL || api.ExternalUIDownloadDetour != "Proxy" {
+	if api.ExternalUI != "custom-ui-0" || api.ExternalUIDownloadURL != settings.ClashUIURL || api.ExternalUIDownloadDetour != "Proxy" {
 		t.Fatalf("unexpected Clash UI config: %#v", api)
 	}
 }

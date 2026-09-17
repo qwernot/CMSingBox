@@ -2,11 +2,12 @@ import { useEffect, useState } from 'react';
 import { Card, CardBody, CardHeader, Button, Chip, Modal, ModalContent, ModalHeader, ModalBody, ModalFooter, Tooltip } from '@nextui-org/react';
 import { Play, Square, RefreshCw, Cpu, HardDrive, Wifi, Info, Activity } from 'lucide-react';
 import { useStore } from '../store';
-import { serviceApi, configApi } from '../api';
+import { serviceApi, configApi, firewallApi } from '../api';
 import { toast } from '../components/Toast';
 
 export default function Dashboard() {
-  const { serviceStatus, subscriptions, systemInfo, fetchServiceStatus, fetchSubscriptions, fetchSystemInfo } = useStore();
+  const { serviceStatus, subscriptions, manualNodes, systemInfo, fetchServiceStatus, fetchSubscriptions, fetchManualNodes, fetchSystemInfo } = useStore();
+  const [gatewayStatus, setGatewayStatus] = useState<{ dns?: boolean; transparent?: boolean; dnsSuccess?: number; dnsFailed?: number }>({});
 
   // 错误模态框状态
   const [errorModal, setErrorModal] = useState<{
@@ -32,12 +33,25 @@ export default function Dashboard() {
   useEffect(() => {
     fetchServiceStatus();
     fetchSubscriptions();
+    fetchManualNodes();
     fetchSystemInfo();
+
+    const fetchGatewayStatus = async () => {
+      const [dns, firewall] = await Promise.allSettled([fetch('/api/monitor/dns', { credentials: 'same-origin' }).then((r) => r.json()), firewallApi.status()]);
+      setGatewayStatus({
+        dns: dns.status === 'fulfilled' ? Boolean(dns.value?.data?.running) : undefined,
+        dnsSuccess: dns.status === 'fulfilled' ? dns.value?.data?.stats?.success : undefined,
+        dnsFailed: dns.status === 'fulfilled' ? dns.value?.data?.stats?.failed : undefined,
+        transparent: firewall.status === 'fulfilled' ? Boolean(firewall.value?.data?.data?.active) : undefined,
+      });
+    };
+    fetchGatewayStatus();
 
     // 每 5 秒刷新状态和系统信息
     const interval = setInterval(() => {
       fetchServiceStatus();
       fetchSystemInfo();
+      fetchGatewayStatus();
     }, 5000);
     return () => clearInterval(interval);
   }, []);
@@ -82,7 +96,7 @@ export default function Dashboard() {
     }
   };
 
-  const totalNodes = subscriptions.reduce((sum, sub) => sum + sub.node_count, 0);
+  const totalNodes = subscriptions.reduce((sum, sub) => sum + sub.node_count, 0) + manualNodes.filter((node) => node.enabled).length;
   const enabledSubs = subscriptions.filter(sub => sub.enabled).length;
   const formatRate = (value = 0) => value >= 1024 * 1024 ? `${(value / 1024 / 1024).toFixed(1)} MB/s` : `${(value / 1024).toFixed(1)} KB/s`;
 
@@ -95,6 +109,11 @@ export default function Dashboard() {
         <Card className="app-panel"><CardBody><p className="text-sm text-gray-500">CPU 使用率</p><p className="text-xl font-bold">{systemInfo?.host?.cpu_percent?.toFixed(1) || '0.0'}%</p><p className="text-xs text-gray-400 truncate">{systemInfo?.host?.cpu_model || ''}</p></CardBody></Card>
         <Card className="app-panel"><CardBody><p className="text-sm text-gray-500">内存 / 磁盘</p><p className="text-xl font-bold">{systemInfo?.host?.memory_percent?.toFixed(1) || '0.0'}% / {systemInfo?.host?.disk_percent?.toFixed(1) || '0.0'}%</p><p className="text-xs text-gray-400">系统资源使用率</p></CardBody></Card>
         <Card className="app-panel"><CardBody><p className="text-sm text-gray-500">网络传输</p><p className="font-bold text-emerald-600">↑ {formatRate(systemInfo?.host?.network_up_bps)}</p><p className="font-bold text-blue-600">↓ {formatRate(systemInfo?.host?.network_down_bps)}</p></CardBody></Card>
+      </div>
+
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <Card className="app-panel"><CardBody className="flex items-center justify-between gap-4"><div><p className="text-sm text-gray-500">独立 DNS</p><p className="mt-1 text-lg font-semibold">{gatewayStatus.dns === undefined ? '状态未知' : gatewayStatus.dns ? '运行中' : '未运行'}</p><p className="text-xs text-gray-500">成功 {gatewayStatus.dnsSuccess ?? '-'} · 失败 {gatewayStatus.dnsFailed ?? '-'}</p></div><Chip color={gatewayStatus.dns ? 'success' : 'warning'} variant="flat">DNS</Chip></CardBody></Card>
+        <Card className="app-panel"><CardBody className="flex items-center justify-between gap-4"><div><p className="text-sm text-gray-500">透明代理规则</p><p className="mt-1 text-lg font-semibold">{gatewayStatus.transparent === undefined ? '状态未知' : gatewayStatus.transparent ? '已应用' : '未应用'}</p><p className="text-xs text-gray-500">旁路由分流需同时配置路由器规则</p></div><Chip color={gatewayStatus.transparent ? 'success' : 'warning'} variant="flat">TProxy</Chip></CardBody></Card>
       </div>
 
       {/* 服务状态卡片 */}

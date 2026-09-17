@@ -149,12 +149,13 @@ type Settings struct {
 	BackHomeKeyPath   string                   `json:"backhome_key_path"`
 
 	// 控制面板
-	WebPort        int    `json:"web_port"`         // 管理界面端口
-	ClashAPIPort   int    `json:"clash_api_port"`   // Clash API 端口
-	ClashUIPath    string `json:"clash_ui_path"`    // zashboard 路径
-	ClashAPISecret string `json:"clash_api_secret"` // ClashAPI 密钥
-	ClashUIURL     string `json:"clash_ui_url"`     // 可选的外部 UI 下载地址
-	ClashUIDetour  string `json:"clash_ui_detour"`  // UI 下载出站
+	WebPort         int    `json:"web_port"`          // 管理界面端口
+	ClashAPIPort    int    `json:"clash_api_port"`    // Clash API 端口
+	ClashUIPath     string `json:"clash_ui_path"`     // zashboard 路径
+	ClashAPISecret  string `json:"clash_api_secret"`  // ClashAPI 密钥
+	ClashUIURL      string `json:"clash_ui_url"`      // 可选的外部 UI 下载地址
+	ClashUIDetour   string `json:"clash_ui_detour"`   // UI 下载出站
+	ClashUIRevision int64  `json:"clash_ui_revision"` // 手动刷新自定义 UI 时更换下载目录
 
 	// 漏网规则
 	FinalOutbound string `json:"final_outbound"` // 默认出站
@@ -188,7 +189,7 @@ func DefaultSettings() *Settings {
 		ProxyDNS:             "https://1.1.1.1/dns-query",
 		DirectDNS:            "udp://192.168.1.1:53",
 		DNSStrategy:          "prefer_ipv4",
-		DNSEnabled:           false,
+		DNSEnabled:           true,
 		DNSListen:            "0.0.0.0:53",
 		DNSProxyUpstream:     "127.0.0.1:1053",
 		DNSDirectUpstream:    "192.168.1.1:53",
@@ -208,7 +209,7 @@ func DefaultSettings() *Settings {
 		WebPort:              9090,
 		ClashAPIPort:         9090,
 		ClashUIPath:          "zashboard",
-		ClashAPISecret:       randomClientPath(),
+		ClashAPISecret:       "",
 		ClashUIDetour:        "DIRECT",
 		FinalOutbound:        "Proxy",
 		RuleSetBaseURL:       DefaultRuleSetBaseURL,
