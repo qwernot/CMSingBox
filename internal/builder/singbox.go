@@ -192,6 +192,13 @@ func NewConfigBuilder(settings *storage.Settings, nodes []storage.Node, filters 
 func filterInformationalNodes(nodes []storage.Node) []storage.Node {
 	result := make([]storage.Node, 0, len(nodes))
 	for _, node := range nodes {
+		if transport, ok := node.Extra["transport"].(map[string]interface{}); ok {
+			if kind, _ := transport["type"].(string); strings.EqualFold(kind, "kcp") {
+				// sing-box has no KCP V2Ray transport. Preserve the saved node,
+				// but do not let it invalidate every other outbound.
+				continue
+			}
+		}
 		name := strings.ToLower(strings.TrimSpace(node.Tag))
 		if strings.Contains(name, "剩余流量") || strings.Contains(name, "流量剩余") ||
 			strings.Contains(name, "套餐到期") || strings.Contains(name, "到期时间") ||

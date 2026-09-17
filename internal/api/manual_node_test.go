@@ -27,3 +27,10 @@ func TestValidateManualNodeAddsTLSForHysteria2(t *testing.T) {
 		t.Fatal("missing default TLS")
 	}
 }
+
+func TestValidateManualNodeRejectsKCP(t *testing.T) {
+	node := storage.ManualNode{Node: storage.Node{Tag: "old", Type: "vless", Server: "example.com", ServerPort: 443, Extra: map[string]interface{}{"uuid": "11111111-1111-1111-1111-111111111111", "transport": map[string]interface{}{"type": "kcp"}}}}
+	if err := validateManualNode(&node); err == nil || !strings.Contains(err.Error(), "KCP") {
+		t.Fatalf("expected KCP error, got %v", err)
+	}
+}

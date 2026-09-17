@@ -18,6 +18,11 @@ func validateManualNode(manual *storage.ManualNode) error {
 	if node.Extra == nil {
 		node.Extra = map[string]interface{}{}
 	}
+	if transport, ok := node.Extra["transport"].(map[string]interface{}); ok {
+		if kind, _ := transport["type"].(string); strings.EqualFold(kind, "kcp") {
+			return fmt.Errorf("sing-box 不支持 KCP 传输，请换用 TCP、WebSocket、gRPC 等节点")
+		}
+	}
 	require := func(key string) error {
 		value, ok := node.Extra[key].(string)
 		if !ok || strings.TrimSpace(value) == "" {

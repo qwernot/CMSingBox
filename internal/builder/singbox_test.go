@@ -32,6 +32,17 @@ func TestConfigBuilder_NodeToOutbound_TUICEnsuresTLS(t *testing.T) {
 	}
 }
 
+func TestConfigBuilderSkipsUnsupportedKCPNode(t *testing.T) {
+	nodes := []storage.Node{{Tag: "legacy-kcp", Type: "vless", Server: "example.com", ServerPort: 443, Extra: map[string]interface{}{"uuid": "11111111-1111-1111-1111-111111111111", "transport": map[string]interface{}{"type": "kcp"}}}}
+	config, err := NewConfigBuilder(storage.DefaultSettings(), nodes, nil, nil, nil).BuildJSON()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(config, "legacy-kcp") {
+		t.Fatal("unsupported KCP node should be omitted")
+	}
+}
+
 func TestConfigBuilder_BuildJSON_OmitsLegacyInboundFieldsByDefault(t *testing.T) {
 	settings := storage.DefaultSettings()
 	settings.DNSEnabled = false
