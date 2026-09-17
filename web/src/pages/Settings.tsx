@@ -650,8 +650,9 @@ export default function Settings() {
         </CardHeader>
         <CardBody className="space-y-4">
           <Input
-            label="代理 DNS"
-            placeholder="https://1.1.1.1/dns-query"
+            label="代理 DNS 解析服务器"
+            description="由 sing-box 经代理出站访问；新安装默认使用 Google DoH，也可填写其他 DoH 地址"
+            placeholder="https://dns.google/dns-query"
             value={formData.proxy_dns}
             onChange={(e) => setFormData({ ...formData, proxy_dns: e.target.value })}
           />
@@ -687,7 +688,7 @@ export default function Settings() {
                 }}
               />
             </div>
-            <div className="grid md:grid-cols-2 gap-4"><Input label="代理 DNS 上游" value={formData.dns_proxy_upstream || '127.0.0.1:1053'} onChange={(e) => setFormData({ ...formData, dns_proxy_upstream: e.target.value })} /><Input label="直连 DNS 上游" value={formData.dns_direct_upstream || '192.168.1.1:53'} onChange={(e) => setFormData({ ...formData, dns_direct_upstream: e.target.value })} /></div>
+            <div className="grid md:grid-cols-2 gap-4"><Input label="内部代理 DNS 入口" description="127.0.0.1:1053 是同机 sing-box 的内部入口；路由器和手机应使用部署机 IP:53" value={formData.dns_proxy_upstream || '127.0.0.1:1053'} onChange={(e) => setFormData({ ...formData, dns_proxy_upstream: e.target.value })} /><Input label="直连 DNS 上游（主路由）" description="默认 192.168.1.1:53；主路由地址不同时请修改，且不要指回 CMSingBox 自己" value={formData.dns_direct_upstream || '192.168.1.1:53'} onChange={(e) => setFormData({ ...formData, dns_direct_upstream: e.target.value })} /></div>
             <Select label="DNS 分流模式" selectedKeys={[formData.dns_routing_mode || 'default_proxy']} onSelectionChange={(keys) => setFormData({ ...formData, dns_routing_mode: String(Array.from(keys)[0]) })}><SelectItem key="default_proxy">默认代理，例外设备直连</SelectItem><SelectItem key="default_direct">默认直连，例外设备代理</SelectItem></Select>
             <Textarea label="例外设备" description="每行一个 IP 或 CIDR，可在 # 后添加备注" value={(formData.dns_exceptions || []).join('\n')} onChange={(e) => setFormData({ ...formData, dns_exceptions: e.target.value.split('\n').map((item) => item.trim()).filter(Boolean) })} />
           </div>

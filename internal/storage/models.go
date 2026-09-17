@@ -188,7 +188,7 @@ func DefaultSettings() *Settings {
 		TunEnabled:           true,
 		AllowLAN:             true, // HTTP / SOCKS5 默认供局域网设备使用
 		MixedUsername:        "cmsingbox",
-		ProxyDNS:             "https://1.1.1.1/dns-query",
+		ProxyDNS:             "https://dns.google/dns-query",
 		DirectDNS:            "udp://192.168.1.1:53",
 		DNSStrategy:          "prefer_ipv4",
 		DNSEnabled:           true,

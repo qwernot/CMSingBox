@@ -114,10 +114,15 @@ func (s *Service) Snapshot() (Stats, []QueryLog, bool) {
 }
 
 func (s *Service) useProxy(source string) bool {
-	ip := net.ParseIP(source)
 	s.mu.RLock()
-	entries, mode := append([]string(nil), s.config.Exceptions...), s.config.Mode
+	config := s.config
 	s.mu.RUnlock()
+	return useProxyFor(config, source)
+}
+
+func useProxyFor(config Config, source string) bool {
+	ip := net.ParseIP(source)
+	entries, mode := config.Exceptions, config.Mode
 	exception := false
 	for _, entry := range entries {
 		entry = strings.TrimSpace(strings.Split(entry, "#")[0])
@@ -139,8 +144,14 @@ func (s *Service) useProxy(source string) bool {
 func (s *Service) handle(writer dns.ResponseWriter, request *dns.Msg) {
 	started := time.Now()
 	source, _, _ := net.SplitHostPort(writer.RemoteAddr().String())
-	key := cacheKey(request)
 	s.mu.Lock()
+	config := s.config
+	upstream := config.DirectUpstream
+	if useProxyFor(config, source) {
+		upstream = config.ProxyUpstream
+	}
+	// 代理与直连解析可能分别返回 FakeIP 和真实 IP，缓存必须按上游隔离。
+	key := upstream + "|" + cacheKey(request)
 	if item, ok := s.cache[key]; ok && time.Now().Before(item.expires) {
 		response := item.message.Copy()
 		response.Id = request.Id
@@ -152,13 +163,7 @@ func (s *Service) handle(writer dns.ResponseWriter, request *dns.Msg) {
 		_ = writer.WriteMsg(response)
 		return
 	}
-	config := s.config
 	s.mu.Unlock()
-
-	upstream := config.DirectUpstream
-	if s.useProxy(source) {
-		upstream = config.ProxyUpstream
-	}
 	client := &dns.Client{Net: "udp", Timeout: 5 * time.Second}
 	response, _, err := client.Exchange(request, upstream)
 	duration := float64(time.Since(started).Microseconds()) / 1000

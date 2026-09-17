@@ -66,3 +66,52 @@ func TestExceptionRouting(t *testing.T) {
 		t.Fatal("default direct exception routing is incorrect")
 	}
 }
+
+func TestCacheDoesNotCrossProxyAndDirectUpstreams(t *testing.T) {
+	startUpstream := func(address string) (string, func()) {
+		connection, err := net.ListenPacket("udp", "127.0.0.1:0")
+		if err != nil {
+			t.Fatal(err)
+		}
+		server := &dns.Server{PacketConn: connection, Handler: dns.HandlerFunc(func(writer dns.ResponseWriter, request *dns.Msg) {
+			response := new(dns.Msg)
+			response.SetReply(request)
+			response.Answer = []dns.RR{&dns.A{Hdr: dns.RR_Header{Name: request.Question[0].Name, Rrtype: dns.TypeA, Class: dns.ClassINET, Ttl: 30}, A: net.ParseIP(address)}}
+			_ = writer.WriteMsg(response)
+		})}
+		go func() { _ = server.ActivateAndServe() }()
+		return connection.LocalAddr().String(), func() { _ = server.Shutdown() }
+	}
+	direct, closeDirect := startUpstream("1.2.3.4")
+	defer closeDirect()
+	proxy, closeProxy := startUpstream("198.18.0.1")
+	defer closeProxy()
+	service := New(Config{Enabled: true, Listen: freeUDPAddress(t), DirectUpstream: direct, ProxyUpstream: proxy, Mode: "default_direct"})
+	if err := service.Start(); err != nil {
+		t.Fatal(err)
+	}
+	defer service.Stop()
+	client := &dns.Client{Timeout: time.Second}
+	query := func(want string) {
+		t.Helper()
+		request := new(dns.Msg)
+		request.SetQuestion("example.com.", dns.TypeA)
+		response, _, err := client.Exchange(request, service.config.Listen)
+		if err != nil || len(response.Answer) != 1 {
+			t.Fatalf("DNS query failed: %v, response=%#v", err, response)
+		}
+		if got := response.Answer[0].(*dns.A).A.String(); got != want {
+			t.Fatalf("DNS answer = %s, want %s", got, want)
+		}
+	}
+	query("1.2.3.4")
+	service.mu.Lock()
+	service.config.Mode = "default_proxy"
+	service.mu.Unlock()
+	query("198.18.0.1")
+	query("198.18.0.1")
+	stats, _, _ := service.Snapshot()
+	if stats.CacheHits != 1 {
+		t.Fatalf("cache hits = %d, want 1", stats.CacheHits)
+	}
+}
