@@ -27,6 +27,7 @@ import (
 	"cmsingbox.local/cmsingbox/internal/parser"
 	"cmsingbox.local/cmsingbox/internal/service"
 	"cmsingbox.local/cmsingbox/internal/storage"
+	"cmsingbox.local/cmsingbox/internal/usage"
 	"cmsingbox.local/cmsingbox/web"
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
@@ -73,6 +74,7 @@ type Server struct {
 	lastNetRecv    uint64
 	lastNetAt      time.Time
 	license        *licensing.Manager
+	usageTracker   *usage.Tracker
 }
 
 // NewServer 创建 API 服务器
@@ -103,6 +105,17 @@ func NewServer(store *storage.JSONStore, processManager *daemon.ProcessManager, 
 		sessions:       make(map[string]time.Time),
 		license:        license,
 	}
+	tracker, err := usage.New(store.GetDataDir(), func() int { return store.GetSettings().ClashAPIPort }, func() string { return store.GetSettings().ClashAPISecret }, func() int {
+		if processManager == nil || !processManager.IsRunning() {
+			return 0
+		}
+		return processManager.GetPID()
+	})
+	if err != nil {
+		logger.Printf("加载持久流量统计失败: %v", err)
+	} else {
+		s.usageTracker = tracker
+	}
 
 	// 设置调度器的更新回调
 	s.scheduler.SetUpdateCallback(s.autoApplyConfig)
@@ -126,11 +139,13 @@ func dnsConfig(settings *storage.Settings) dnsproxy.Config {
 // StartScheduler 启动定时任务调度器
 func (s *Server) StartScheduler() {
 	s.scheduler.Start()
+	s.usageTracker.Start()
 }
 
 // StopScheduler 停止定时任务调度器
 func (s *Server) StopScheduler() {
 	s.scheduler.Stop()
+	s.usageTracker.Stop()
 }
 
 // setupRoutes 设置路由
@@ -231,6 +246,7 @@ func (s *Server) setupRoutes() {
 		protected.GET("/monitor/logs/sbm", s.getAppLogs)
 		protected.GET("/monitor/logs/singbox", s.getSingboxLogs)
 		protected.GET("/monitor/dns", s.getDNSMonitor)
+		protected.GET("/monitor/traffic", s.getTrafficMonitor)
 		protected.GET("/firewall/status", s.getFirewallStatus)
 		protected.GET("/firewall/preview", s.previewFirewall)
 		protected.POST("/firewall/apply", s.applyFirewall)
@@ -1394,6 +1410,10 @@ func (s *Server) getSystemInfo(c *gin.Context) {
 func (s *Server) getDNSMonitor(c *gin.Context) {
 	stats, logs, running := s.dnsService.Snapshot()
 	c.JSON(http.StatusOK, gin.H{"data": gin.H{"running": running, "stats": stats, "logs": logs}})
+}
+
+func (s *Server) getTrafficMonitor(c *gin.Context) {
+	c.JSON(http.StatusOK, gin.H{"data": s.usageTracker.Snapshot()})
 }
 
 func (s *Server) getLogs(c *gin.Context) {

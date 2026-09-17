@@ -1005,6 +1005,11 @@ function SubscriptionCard({ subscription: sub, onRefresh, onEdit, onDelete, onTo
             <p className="text-sm text-gray-500">
               {sub.node_count} 个节点 · 更新于 {new Date(sub.updated_at).toLocaleString()}
             </p>
+            {sub.traffic && sub.traffic.total > 0 && (
+              <p className="mt-1 text-xs text-purple-600 dark:text-purple-300">
+                已用 {formatBytes(sub.traffic.used)} / {formatBytes(sub.traffic.total)} · 剩余 {formatBytes(Math.max(0, sub.traffic.remaining))}
+              </p>
+            )}
           </div>
         </div>
         <div className="flex gap-2 items-center">

@@ -143,6 +143,8 @@ func (s *SubscriptionService) refresh(sub *storage.Subscription) error {
 			Total:     info.Total,
 			Used:      info.Upload + info.Download,
 			Remaining: info.Total - info.Upload - info.Download,
+			Upload:    info.Upload,
+			Download:  info.Download,
 		}
 		sub.ExpireAt = info.Expire
 	}

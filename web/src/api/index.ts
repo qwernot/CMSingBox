@@ -126,6 +126,7 @@ export const monitorApi = {
   appLogs: (lines: number = 200) => api.get(`/monitor/logs/sbm?lines=${lines}`),
   singboxLogs: (lines: number = 200) => api.get(`/monitor/logs/singbox?lines=${lines}`),
   dns: () => api.get('/monitor/dns'),
+  traffic: () => api.get('/monitor/traffic'),
 };
 
 // 节点 API

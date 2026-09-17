@@ -14,6 +14,8 @@ export interface Subscription {
     total: number;
     used: number;
     remaining: number;
+    upload?: number;
+    download?: number;
   };
   nodes: Node[];
   enabled: boolean;

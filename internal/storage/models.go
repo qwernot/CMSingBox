@@ -26,6 +26,8 @@ type Traffic struct {
 	Total     int64 `json:"total"`     // 总流量 (bytes)
 	Used      int64 `json:"used"`      // 已用流量
 	Remaining int64 `json:"remaining"` // 剩余流量
+	Upload    int64 `json:"upload"`    // 服务商统计的上传流量
+	Download  int64 `json:"download"`  // 服务商统计的下载流量
 }
 
 // Node 节点
