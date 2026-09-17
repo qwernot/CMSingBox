@@ -6,7 +6,7 @@ import (
 	"time"
 )
 
-const DefaultRuleSetBaseURL = "https://raw.githubusercontent.com/qwernot/CM/main/rules/geosite"
+const DefaultRuleSetBaseURL = "https://666228.xyz/CM/rules/geosite"
 
 // Subscription 订阅
 type Subscription struct {
@@ -231,31 +231,32 @@ func randomClientPath() string {
 
 // AppData 应用数据
 type AppData struct {
-	Subscriptions []Subscription `json:"subscriptions"`
-	ManualNodes   []ManualNode   `json:"manual_nodes"`
-	Filters       []Filter       `json:"filters"`
-	Rules         []Rule         `json:"rules"`
-	RuleGroups    []RuleGroup    `json:"rule_groups"`
-	Settings      *Settings      `json:"settings"`
-	Auth          *AuthConfig    `json:"auth"`
+	Subscriptions     []Subscription `json:"subscriptions"`
+	ManualNodes       []ManualNode   `json:"manual_nodes"`
+	Filters           []Filter       `json:"filters"`
+	Rules             []Rule         `json:"rules"`
+	RuleGroups        []RuleGroup    `json:"rule_groups"`
+	RulePresetVersion int            `json:"rule_preset_version"`
+	Settings          *Settings      `json:"settings"`
+	Auth              *AuthConfig    `json:"auth"`
 }
+
+const CurrentRulePresetVersion = 2
 
 // DefaultRuleGroups 默认规则组
 func DefaultRuleGroups() []RuleGroup {
 	return []RuleGroup{
-		{ID: "ad-block", Name: "广告拦截", SiteRules: []string{"category-ads-all"}, Outbound: "REJECT", Enabled: true},
-		{ID: "ai-services", Name: "AI 服务", SiteRules: []string{"openai", "anthropic", "jetbrains-ai"}, Outbound: "Proxy", Enabled: true},
-		{ID: "google", Name: "Google", SiteRules: []string{"google"}, IPRules: []string{"google"}, Outbound: "Proxy", Enabled: true},
-		{ID: "youtube", Name: "YouTube", SiteRules: []string{"youtube"}, Outbound: "Proxy", Enabled: true},
-		{ID: "github", Name: "GitHub", SiteRules: []string{"github"}, Outbound: "Proxy", Enabled: true},
+		{ID: "cn-cdn", Name: "CN-CDN", SiteRules: []string{"apple@cn", "steam@cn", "microsoft@cn"}, Outbound: "DIRECT", Enabled: true},
+		{ID: "youtube", Name: "Youtube", SiteRules: []string{"youtube"}, Outbound: "Proxy", Enabled: true},
 		{ID: "telegram", Name: "Telegram", SiteRules: []string{"telegram"}, IPRules: []string{"telegram"}, Outbound: "Proxy", Enabled: true},
-		{ID: "twitter", Name: "Twitter/X", SiteRules: []string{"twitter"}, Outbound: "Proxy", Enabled: true},
-		{ID: "netflix", Name: "Netflix", SiteRules: []string{"netflix"}, Outbound: "Proxy", Enabled: false},
-		{ID: "spotify", Name: "Spotify", SiteRules: []string{"spotify"}, Outbound: "Proxy", Enabled: false},
-		{ID: "apple", Name: "Apple", SiteRules: []string{"apple"}, Outbound: "DIRECT", Enabled: true},
-		{ID: "microsoft", Name: "Microsoft", SiteRules: []string{"microsoft"}, Outbound: "DIRECT", Enabled: true},
-		{ID: "cn", Name: "中国地区", SiteRules: []string{"geolocation-cn"}, IPRules: []string{"cn"}, Outbound: "DIRECT", Enabled: true},
-		{ID: "private", Name: "私有网络", SiteRules: []string{"private"}, IPRules: []string{"private"}, Outbound: "DIRECT", Enabled: true},
+		{ID: "spotify", Name: "Spotify", SiteRules: []string{"spotify"}, Outbound: "Proxy", Enabled: true},
+		{ID: "netflix", Name: "Netflix", SiteRules: []string{"netflix"}, IPRules: []string{"netflix"}, Outbound: "Proxy", Enabled: true},
+		{ID: "ai-services", Name: "AI", SiteRules: []string{"category-ai-!cn"}, Outbound: "Proxy", Enabled: true},
+		{ID: "github", Name: "Github", SiteRules: []string{"github"}, Outbound: "Proxy", Enabled: true},
+		{ID: "google", Name: "Google", SiteRules: []string{"google"}, Outbound: "Proxy", Enabled: true},
+		{ID: "steam", Name: "Steam", SiteRules: []string{"steam"}, Outbound: "Proxy", Enabled: true},
+		{ID: "cn", Name: "CN", SiteRules: []string{"cn"}, IPRules: []string{"cn"}, Outbound: "DIRECT", Enabled: true},
+		{ID: "non-cn", Name: "!CN", SiteRules: []string{"geolocation-!cn"}, Outbound: "Proxy", Enabled: true},
 	}
 }
 

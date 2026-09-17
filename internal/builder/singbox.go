@@ -750,7 +750,6 @@ func (b *ConfigBuilder) buildOutbounds() []Outbound {
 		if !rg.Enabled {
 			continue
 		}
-
 		var selectorOutbounds []string
 
 		// 根据规则组的默认出站类型决定可选项
@@ -1096,9 +1095,18 @@ func (b *ConfigBuilder) buildRoute() *RouteConfig {
 	}
 
 	// 添加规则组的路由规则
+	cnFallbackAdded := false
 	for _, rg := range b.ruleGroups {
 		if !rg.Enabled {
 			continue
+		}
+		if rg.ID == "non-cn" {
+			// 地理规则集更新可能滞后于新注册的 .cn 域名；在 !CN 兜底前直连。
+			rules = append(rules, RouteRule{
+				"domain_suffix": []string{"cn"},
+				"outbound":      "DIRECT",
+			})
+			cnFallbackAdded = true
 		}
 
 		// Site 规则
@@ -1126,12 +1134,13 @@ func (b *ConfigBuilder) buildRoute() *RouteConfig {
 		}
 	}
 
-	// 地理规则集更新通常滞后于新注册的 .cn 域名。未命中用户规则及
-	// 中国地区规则组时，仍将 .cn 域名直连，避免国内站点误走海外出口。
-	rules = append(rules, RouteRule{
-		"domain_suffix": []string{"cn"},
-		"outbound":      "DIRECT",
-	})
+	if !cnFallbackAdded {
+		// 兼容旧配置或完全自定义规则组。
+		rules = append(rules, RouteRule{
+			"domain_suffix": []string{"cn"},
+			"outbound":      "DIRECT",
+		})
+	}
 
 	route.Rules = rules
 

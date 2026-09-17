@@ -72,13 +72,14 @@ func (s *JSONStore) load() error {
 			return err
 		}
 		s.data = &AppData{
-			Subscriptions: []Subscription{},
-			ManualNodes:   []ManualNode{},
-			Filters:       []Filter{},
-			Rules:         []Rule{},
-			RuleGroups:    DefaultRuleGroups(),
-			Settings:      DefaultSettings(),
-			Auth:          auth,
+			Subscriptions:     []Subscription{},
+			ManualNodes:       []ManualNode{},
+			Filters:           []Filter{},
+			Rules:             []Rule{},
+			RuleGroups:        DefaultRuleGroups(),
+			RulePresetVersion: CurrentRulePresetVersion,
+			Settings:          DefaultSettings(),
+			Auth:              auth,
 		}
 		return s.saveInternal()
 	}
@@ -99,13 +100,14 @@ func (s *JSONStore) load() error {
 		s.data.Settings = DefaultSettings()
 	}
 
-	// 确保 RuleGroups 不为空
-	if len(s.data.RuleGroups) == 0 {
-		s.data.RuleGroups = DefaultRuleGroups()
-	}
-
 	// 迁移旧的路径格式（移除多余的 data/ 前缀）
 	needSave := false
+	if s.data.RulePresetVersion < CurrentRulePresetVersion {
+		// 旧预设整体升级；用户手动添加的 Rules 独立保存，不受影响。
+		s.data.RuleGroups = DefaultRuleGroups()
+		s.data.RulePresetVersion = CurrentRulePresetVersion
+		needSave = true
+	}
 	// CMSingBox 用作局域网网关时，Mixed 代理入口必须保持对局域网开放。
 	if !s.data.Settings.AllowLAN {
 		s.data.Settings.AllowLAN = true
@@ -183,7 +185,7 @@ func (s *JSONStore) load() error {
 		needSave = true
 	}
 	// 将早期版本使用的第三方规则仓库迁移到项目自有镜像。
-	if s.data.Settings.RuleSetBaseURL == "" || s.data.Settings.RuleSetBaseURL == "https://github.com/lyc8503/sing-box-rules/raw/rule-set-geosite" {
+	if s.data.Settings.RuleSetBaseURL == "" || s.data.Settings.RuleSetBaseURL == "https://github.com/lyc8503/sing-box-rules/raw/rule-set-geosite" || s.data.Settings.RuleSetBaseURL == "https://raw.githubusercontent.com/qwernot/CM/main/rules/geosite" {
 		s.data.Settings.RuleSetBaseURL = DefaultRuleSetBaseURL
 		needSave = true
 	}
@@ -261,8 +263,9 @@ func (s *JSONStore) RestoreConfiguration(raw []byte) error {
 	if restored.Rules == nil {
 		restored.Rules = []Rule{}
 	}
-	if len(restored.RuleGroups) == 0 {
+	if restored.RulePresetVersion < CurrentRulePresetVersion {
 		restored.RuleGroups = DefaultRuleGroups()
+		restored.RulePresetVersion = CurrentRulePresetVersion
 	}
 
 	s.mu.Lock()

@@ -385,7 +385,7 @@ func TestConfigBuilder_DefaultRulesUseProjectMirror(t *testing.T) {
 		t.Fatal("default rule sets missing")
 	}
 	for _, ruleSet := range config.Route.RuleSet {
-		if !strings.Contains(ruleSet.URL, "raw.githubusercontent.com/qwernot/CM/main/rules/") {
+		if !strings.Contains(ruleSet.URL, "666228.xyz/CM/rules/") {
 			t.Fatalf("rule set still depends on a third-party mirror: %s", ruleSet.URL)
 		}
 	}
