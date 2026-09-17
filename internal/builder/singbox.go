@@ -348,7 +348,7 @@ func parseDNSServer(tag, value, fallbackType, detour string) DNSServer {
 }
 
 func parseBootstrapDNSServer(value string) DNSServer {
-	server := DNSServer{Tag: "dns_bootstrap", Type: "udp", Server: "192.168.1.1", ServerPort: 53}
+	server := DNSServer{Tag: "dns_bootstrap", Type: "udp", Server: "223.5.5.5", ServerPort: 53}
 	value = strings.TrimSpace(value)
 	if value == "" {
 		return server

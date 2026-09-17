@@ -222,8 +222,8 @@ func TestConfigBuilder_DefaultDomainResolverUsesBootstrap(t *testing.T) {
 			break
 		}
 	}
-	if bootstrap == nil || bootstrap.Type != "udp" || bootstrap.Server != "192.168.1.1" || bootstrap.ServerPort != 53 {
-		t.Fatalf("dns_bootstrap = %#v, want configured gateway DNS", bootstrap)
+	if bootstrap == nil || bootstrap.Type != "udp" || bootstrap.Server != "223.5.5.5" || bootstrap.ServerPort != 53 {
+		t.Fatalf("dns_bootstrap = %#v, want configured direct DNS", bootstrap)
 	}
 }
 

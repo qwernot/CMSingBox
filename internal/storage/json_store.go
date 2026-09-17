@@ -128,7 +128,7 @@ func (s *JSONStore) load() error {
 	if s.data.Settings.DNSListen == "" {
 		s.data.Settings.DNSListen = "0.0.0.0:53"
 		s.data.Settings.DNSProxyUpstream = "127.0.0.1:1053"
-		s.data.Settings.DNSDirectUpstream = "192.168.1.1:53"
+		s.data.Settings.DNSDirectUpstream = "223.5.5.5:53"
 		s.data.Settings.DNSRoutingMode = "default_proxy"
 		s.data.Settings.DNSExceptions = []string{}
 		needSave = true
