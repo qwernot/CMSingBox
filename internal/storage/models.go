@@ -122,33 +122,34 @@ type Settings struct {
 	MixedPassword    string `json:"mixed_password"`     // HTTP/SOCKS5 密码
 
 	// DNS 配置
-	ProxyDNS          string                   `json:"proxy_dns"`       // 代理 DNS
-	DirectDNS         string                   `json:"direct_dns"`      // 直连 DNS
-	DNSStrategy       string                   `json:"dns_strategy"`    // prefer_ipv4/prefer_ipv6/ipv4_only/ipv6_only
-	Hosts             []HostEntry              `json:"hosts,omitempty"` // DNS hosts 映射
-	DNSEnabled        bool                     `json:"dns_enabled"`
-	DNSListen         string                   `json:"dns_listen"`
-	DNSProxyUpstream  string                   `json:"dns_proxy_upstream"`
-	DNSDirectUpstream string                   `json:"dns_direct_upstream"`
-	DNSRoutingMode    string                   `json:"dns_routing_mode"`
-	DNSExceptions     []string                 `json:"dns_exceptions"`
-	FakeIPRange       string                   `json:"fakeip_range"`
-	LogEnabled        bool                     `json:"log_enabled"`
-	LogLevel          string                   `json:"log_level"`
-	LogTimestamp      bool                     `json:"log_timestamp"`
-	LogPath           string                   `json:"log_path"`
-	ExtraInbounds     []map[string]interface{} `json:"extra_inbounds"`
-	ExtraOutbounds    []map[string]interface{} `json:"extra_outbounds"`
-	TransparentProxy  bool                     `json:"transparent_proxy"`
-	TProxyPort        int                      `json:"tproxy_port"`
-	BypassCIDRs       []string                 `json:"bypass_cidrs"`
-	ClientConfigPath  string                   `json:"client_config_path"`
-	BackHomeEnabled   bool                     `json:"backhome_enabled"`
-	BackHomeServer    string                   `json:"backhome_server"`
-	BackHomePort      int                      `json:"backhome_port"`
-	BackHomePassword  string                   `json:"backhome_password"`
-	BackHomeCertPath  string                   `json:"backhome_cert_path"`
-	BackHomeKeyPath   string                   `json:"backhome_key_path"`
+	ProxyDNS           string                   `json:"proxy_dns"`       // 代理 DNS
+	DirectDNS          string                   `json:"direct_dns"`      // 直连 DNS
+	DNSStrategy        string                   `json:"dns_strategy"`    // prefer_ipv4/prefer_ipv6/ipv4_only/ipv6_only
+	Hosts              []HostEntry              `json:"hosts,omitempty"` // DNS hosts 映射
+	DNSEnabled         bool                     `json:"dns_enabled"`
+	DNSListen          string                   `json:"dns_listen"`
+	DNSProxyUpstream   string                   `json:"dns_proxy_upstream"`
+	DNSDirectUpstream  string                   `json:"dns_direct_upstream"`
+	DNSRoutingMode     string                   `json:"dns_routing_mode"`
+	DNSExceptions      []string                 `json:"dns_exceptions"`
+	FakeIPRange        string                   `json:"fakeip_range"`
+	LogEnabled         bool                     `json:"log_enabled"`
+	LogLevel           string                   `json:"log_level"`
+	LogTimestamp       bool                     `json:"log_timestamp"`
+	LogPath            string                   `json:"log_path"`
+	ExtraInbounds      []map[string]interface{} `json:"extra_inbounds"`
+	ExtraOutbounds     []map[string]interface{} `json:"extra_outbounds"`
+	TransparentProxy   bool                     `json:"transparent_proxy"`
+	TransparentBackend string                   `json:"transparent_backend"` // nftables 或 routeros_redirect
+	TProxyPort         int                      `json:"tproxy_port"`
+	BypassCIDRs        []string                 `json:"bypass_cidrs"`
+	ClientConfigPath   string                   `json:"client_config_path"`
+	BackHomeEnabled    bool                     `json:"backhome_enabled"`
+	BackHomeServer     string                   `json:"backhome_server"`
+	BackHomePort       int                      `json:"backhome_port"`
+	BackHomePassword   string                   `json:"backhome_password"`
+	BackHomeCertPath   string                   `json:"backhome_cert_path"`
+	BackHomeKeyPath    string                   `json:"backhome_key_path"`
 
 	// 控制面板
 	WebPort         int    `json:"web_port"`          // 管理界面端口
@@ -204,6 +205,7 @@ func DefaultSettings() *Settings {
 		ExtraInbounds:        []map[string]interface{}{},
 		ExtraOutbounds:       []map[string]interface{}{},
 		TransparentProxy:     false,
+		TransparentBackend:   "nftables",
 		TProxyPort:           7893,
 		BypassCIDRs:          []string{"0.0.0.0/8", "10.0.0.0/8", "127.0.0.0/8", "169.254.0.0/16", "172.16.0.0/12", "192.168.0.0/16", "224.0.0.0/4"},
 		ClientConfigPath:     randomClientPath(),

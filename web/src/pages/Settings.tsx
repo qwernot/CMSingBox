@@ -307,6 +307,7 @@ export default function Settings() {
     if (formData) {
       try {
         await updateSettings(formData);
+        firewallApi.status().then((response) => setFirewallStatus(response.data.data)).catch(() => undefined);
         toast.success('设置已保存');
       } catch (error: any) {
         toast.error(error.response?.data?.error || '保存设置失败');
@@ -384,7 +385,7 @@ export default function Settings() {
   };
 
   const handleFirewall = async (enable: boolean) => {
-    if (!confirm(enable ? '即将修改本机 nftables 和策略路由，确定应用透明代理规则吗？' : '确定停用本机透明代理规则吗？')) return;
+    if (!confirm(enable ? `即将修改本机 ${formData?.transparent_backend === 'routeros_redirect' ? 'iptables' : 'nftables'} 规则，确定应用透明代理吗？` : '确定停用本机透明代理规则吗？')) return;
     try { if (enable) await firewallApi.apply(); else await firewallApi.disable(); const response = await firewallApi.status(); setFirewallStatus(response.data.data); toast.success(enable ? '透明代理已启用' : '透明代理已停用'); }
     catch (error: unknown) { const message = typeof error === 'object' && error !== null && 'response' in error ? (error as { response?: { data?: { error?: string } } }).response?.data?.error : undefined; toast.error(message || '防火墙操作失败'); }
   };
@@ -817,7 +818,7 @@ export default function Settings() {
 
       <Card>
         <CardHeader className="flex justify-between"><div><h2 className="text-lg font-semibold">透明代理</h2><p className="text-sm text-gray-500">接管由主路由转发到本机的 TCP/UDP 流量</p></div><Chip color={firewallStatus?.active ? 'success' : 'default'} variant="flat">{firewallStatus?.active ? '规则已应用' : '规则未应用'}</Chip></CardHeader>
-        <CardBody className="space-y-4"><div className="flex justify-between"><div><p className="font-medium">启用透明代理配置</p><p className="text-sm text-gray-500">第一步保存并应用 sing-box 配置，第二步应用 nftables，最后在主路由设置下一跳</p></div><Switch isSelected={formData.transparent_proxy} onValueChange={(value) => setFormData({ ...formData, transparent_proxy: value })} /></div><Input type="number" label="TProxy 端口" value={String(formData.tproxy_port || 7893)} onChange={(e) => setFormData({ ...formData, tproxy_port: Number(e.target.value) })} /><Textarea label="绕过网段" value={(formData.bypass_cidrs || []).join('\n')} onChange={(e) => setFormData({ ...formData, bypass_cidrs: e.target.value.split('\n').map((item) => item.trim()).filter(Boolean) })} /><div className="flex gap-2"><Button color="primary" isDisabled={!formData.transparent_proxy || !firewallStatus?.supported} onPress={() => handleFirewall(true)}>应用 nftables</Button><Button color="danger" variant="flat" isDisabled={!firewallStatus?.active} onPress={() => handleFirewall(false)}>停用规则</Button>{firewallStatus && !firewallStatus.supported && <Chip color="warning" variant="flat">当前环境缺少 nftables</Chip>}</div></CardBody>
+        <CardBody className="space-y-4"><div className="flex justify-between"><div><p className="font-medium">启用透明代理配置</p><p className="text-sm text-gray-500">先保存并应用 sing-box 配置，再应用本机防火墙规则；主路由还需将目标流量转发到本机</p></div><Switch isSelected={formData.transparent_proxy} onValueChange={(value) => setFormData({ ...formData, transparent_proxy: value })} /></div><select className="w-full rounded-lg border p-3 dark:bg-zinc-900" value={formData.transparent_backend || 'nftables'} onChange={(e) => setFormData({ ...formData, transparent_backend: e.target.value })}><option value="nftables">Linux：nftables TProxy</option><option value="routeros_redirect">RouterOS 容器：iptables TCP redirect</option></select><Input type="number" label={formData.transparent_backend === 'routeros_redirect' ? 'TCP redirect 端口' : 'TProxy 端口'} value={String(formData.tproxy_port || 7893)} onChange={(e) => setFormData({ ...formData, tproxy_port: Number(e.target.value) })} /><Textarea label="绕过网段" value={(formData.bypass_cidrs || []).join('\n')} onChange={(e) => setFormData({ ...formData, bypass_cidrs: e.target.value.split('\n').map((item) => item.trim()).filter(Boolean) })} /><div className="flex gap-2"><Button color="primary" isDisabled={!formData.transparent_proxy || !firewallStatus?.supported} onPress={() => handleFirewall(true)}>应用{formData.transparent_backend === 'routeros_redirect' ? ' iptables' : ' nftables'}</Button><Button color="danger" variant="flat" isDisabled={!firewallStatus?.active} onPress={() => handleFirewall(false)}>停用规则</Button>{firewallStatus && !firewallStatus.supported && <Chip color="warning" variant="flat">当前环境缺少所需防火墙工具</Chip>}</div><p className="text-xs text-gray-500">RouterOS 模式只接管 TCP；UDP 需通过 TUN 路由，不能仅靠此按钮。切换模式前请先停用旧模式规则。</p></CardBody>
       </Card>
 
       {/* 自动化设置 */}

@@ -568,15 +568,16 @@ func (b *ConfigBuilder) buildInbounds() []Inbound {
 	}
 
 	if b.settings.TunEnabled {
+		rosRedirect := b.settings.TransparentBackend == "routeros_redirect"
 		tunInbound := Inbound{
 			Type:        "tun",
 			Tag:         "tun-in",
 			Address:     []string{"172.19.0.1/30", "fdfe:dcba:9876::1/126"},
 			AutoRoute:   true,
-			StrictRoute: true,
+			StrictRoute: !rosRedirect,
 			Stack:       "system",
 		}
-		if runtime.GOOS == "linux" {
+		if runtime.GOOS == "linux" && !rosRedirect {
 			// Linux 网关上的转发流量没有本机 UID，仍会进入 TUN；排除 root
 			// 可避免 SSH、管理后台等本机服务的返回流量被再次送进代理。
 			tunInbound.AutoRedirect = true
@@ -589,7 +590,11 @@ func (b *ConfigBuilder) buildInbounds() []Inbound {
 		inbounds = append(inbounds, tunInbound)
 	}
 	if b.settings.TransparentProxy {
-		tproxyInbound := Inbound{Type: "tproxy", Tag: "tproxy-in", Listen: "0.0.0.0", ListenPort: b.settings.TProxyPort}
+		inboundType, inboundTag := "tproxy", "tproxy-in"
+		if b.settings.TransparentBackend == "routeros_redirect" {
+			inboundType, inboundTag = "redirect", "redirect-in"
+		}
+		tproxyInbound := Inbound{Type: inboundType, Tag: inboundTag, Listen: "0.0.0.0", ListenPort: b.settings.TProxyPort}
 		if b.profile.LegacyInboundFields {
 			tproxyInbound.Sniff = true
 			tproxyInbound.SniffOverrideDestination = true

@@ -117,6 +117,7 @@ export interface Settings {
   extra_inbounds: Record<string, unknown>[];
   extra_outbounds: Record<string, unknown>[];
   transparent_proxy: boolean;
+  transparent_backend: string;
   tproxy_port: number;
   bypass_cidrs: string[];
   client_config_path: string;

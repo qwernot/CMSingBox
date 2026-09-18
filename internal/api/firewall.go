@@ -1,6 +1,7 @@
 package api
 
 import (
+	"fmt"
 	"net/http"
 
 	"cmsingbox.local/cmsingbox/internal/firewall"
@@ -9,15 +10,21 @@ import (
 
 func (s *Server) firewallConfig() firewall.Config {
 	settings := s.store.GetSettings()
-	return firewall.Config{Port: settings.TProxyPort, BypassCIDRs: settings.BypassCIDRs}
+	return firewall.Config{Port: settings.TProxyPort, BypassCIDRs: settings.BypassCIDRs, Backend: settings.TransparentBackend}
 }
 
 func (s *Server) getFirewallStatus(c *gin.Context) {
-	c.JSON(http.StatusOK, gin.H{"data": gin.H{"supported": s.firewall.Supported(), "active": s.firewall.Active()}})
+	config := s.firewallConfig()
+	c.JSON(http.StatusOK, gin.H{"data": gin.H{"supported": s.firewall.SupportedFor(config), "active": s.firewall.ActiveFor(config)}})
 }
 
 func (s *Server) previewFirewall(c *gin.Context) {
-	script, err := firewall.BuildNFTables(s.firewallConfig())
+	config := s.firewallConfig()
+	if config.Backend == "routeros_redirect" {
+		c.JSON(http.StatusOK, gin.H{"data": fmt.Sprintf("iptables-legacy -t nat -N CMSINGBOX_REDIRECT\niptables-legacy -t nat -A CMSINGBOX_REDIRECT -p tcp -j REDIRECT --to-ports %d\niptables-legacy -t nat -A PREROUTING -p tcp -j CMSINGBOX_REDIRECT\n", config.Port)})
+		return
+	}
+	script, err := firewall.BuildNFTables(config)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
@@ -38,7 +45,7 @@ func (s *Server) applyFirewall(c *gin.Context) {
 }
 
 func (s *Server) disableFirewall(c *gin.Context) {
-	if err := s.firewall.Disable(); err != nil {
+	if err := s.firewall.DisableFor(s.firewallConfig()); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}

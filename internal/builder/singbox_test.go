@@ -105,6 +105,29 @@ func TestConfigBuilder_LinuxTunKeepsHostServicesOutsideProxy(t *testing.T) {
 	}
 }
 
+func TestConfigBuilder_RouterOSRedirect(t *testing.T) {
+	settings := storage.DefaultSettings()
+	settings.DNSEnabled = false
+	settings.TunEnabled = true
+	settings.TransparentProxy = true
+	settings.TransparentBackend = "routeros_redirect"
+	config, err := NewConfigBuilder(settings, nil, nil, nil, nil).Build()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(config.Inbounds) != 3 {
+		t.Fatalf("inbounds = %#v", config.Inbounds)
+	}
+	tun := config.Inbounds[1].(Inbound)
+	if !tun.AutoRoute || tun.AutoRedirect || tun.StrictRoute {
+		t.Fatalf("unexpected RouterOS TUN: %#v", tun)
+	}
+	redirect := config.Inbounds[2].(Inbound)
+	if redirect.Type != "redirect" || redirect.ListenPort != settings.TProxyPort {
+		t.Fatalf("unexpected redirect inbound: %#v", redirect)
+	}
+}
+
 func TestConfigBuilder_WithSingBoxVersion_KeepsLegacyInboundFieldsForPre113(t *testing.T) {
 	settings := storage.DefaultSettings()
 	settings.DNSEnabled = false

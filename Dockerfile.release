@@ -3,7 +3,7 @@ FROM debian:bookworm-slim
 ARG TARGETARCH
 
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends ca-certificates nftables iproute2 tzdata \
+    && apt-get install -y --no-install-recommends ca-certificates nftables iptables iproute2 tzdata \
     && rm -rf /var/lib/apt/lists/*
 
 COPY dist/cmsingbox-linux-${TARGETARCH} /usr/local/bin/cmsingbox

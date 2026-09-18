@@ -686,6 +686,17 @@ func (s *Server) updateSettings(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
+	if settings.TransparentBackend == "" {
+		settings.TransparentBackend = "nftables"
+	}
+	if settings.TransparentBackend != "nftables" && settings.TransparentBackend != "routeros_redirect" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "不支持的透明代理模式"})
+		return
+	}
+	if settings.TransparentBackend == "routeros_redirect" && settings.TransparentProxy && !settings.TunEnabled {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "RouterOS 兼容模式需要同时启用 TUN"})
+		return
+	}
 
 	// HTTP / SOCKS5 是网关的基础入口，始终保持局域网可访问。
 	settings.AllowLAN = true
