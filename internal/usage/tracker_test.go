@@ -28,6 +28,7 @@ func TestTotalsSurviveCoreAndManagerRestarts(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
+	tracker.Stop()
 	tracker = newTracker()
 	if err := tracker.Observe(11, Counters{UploadTotal: 25, DownloadTotal: 35}, time.Now()); err != nil {
 		t.Fatal(err)

@@ -72,7 +72,7 @@ func TestLoginAllowsBrowserOriginMismatch(t *testing.T) {
 	form := url.Values{"password": {"strong-test-password"}}
 	request := httptest.NewRequest(http.MethodPost, "http://127.0.0.1:9093/login", strings.NewReader(form.Encode()))
 	request.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-	request.Header.Set("Origin", "http://127.0.0.1:9092")
+	request.Header.Set("Origin", "http://127.0.0.1:80")
 	recorder := httptest.NewRecorder()
 
 	s.login(recorder, request)
@@ -87,7 +87,7 @@ func TestLoginAllowsBrowserOriginMismatch(t *testing.T) {
 
 func TestValidOriginAllowsSameHostAcrossPorts(t *testing.T) {
 	request := httptest.NewRequest(http.MethodPost, "http://127.0.0.1:9093/issue", nil)
-	request.Header.Set("Origin", "http://127.0.0.1:9092")
+	request.Header.Set("Origin", "http://127.0.0.1:80")
 	if !validOrigin(request) {
 		t.Fatal("same host with a different service port should be accepted")
 	}

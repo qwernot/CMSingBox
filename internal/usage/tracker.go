@@ -36,15 +36,17 @@ type state struct {
 }
 
 type Tracker struct {
-	mu     sync.RWMutex
-	path   string
-	state  state
-	port   func() int
-	secret func() string
-	pid    func() int
-	client *http.Client
-	cancel context.CancelFunc
-	done   chan struct{}
+	mu        sync.RWMutex
+	path      string
+	state     state
+	port      func() int
+	secret    func() string
+	pid       func() int
+	client    *http.Client
+	cancel    context.CancelFunc
+	done      chan struct{}
+	dirty     bool
+	lastSaved time.Time
 }
 
 func New(dataDir string, port func() int, secret func() string, pid func() int) (*Tracker, error) {
@@ -57,6 +59,7 @@ func New(dataDir string, port func() int, secret func() string, pid func() int) 
 		if err := json.Unmarshal(data, &t.state); err != nil {
 			return nil, fmt.Errorf("解析流量历史失败: %w", err)
 		}
+		t.lastSaved = time.Now()
 	}
 	return t, nil
 }
@@ -101,6 +104,7 @@ func (t *Tracker) Stop() {
 		cancel()
 		<-done
 	}
+	_ = t.flush()
 }
 
 func (t *Tracker) Poll(ctx context.Context) error {
@@ -146,10 +150,29 @@ func (t *Tracker) Observe(pid int, counters Counters, at time.Time) error {
 		next.Download += counters.DownloadTotal - next.LastDownload
 	}
 	next.LastUpload, next.LastDownload, next.LastPID, next.UpdatedAt = counters.UploadTotal, counters.DownloadTotal, pid, at
-	if err := t.save(next); err != nil {
+	t.state = next
+	t.dirty = true
+	if t.lastSaved.IsZero() || at.Sub(t.lastSaved) >= time.Minute {
+		if err := t.save(t.state); err != nil {
+			return err
+		}
+		t.dirty = false
+		t.lastSaved = at
+	}
+	return nil
+}
+
+func (t *Tracker) flush() error {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	if !t.dirty {
+		return nil
+	}
+	if err := t.save(t.state); err != nil {
 		return err
 	}
-	t.state = next
+	t.dirty = false
+	t.lastSaved = time.Now()
 	return nil
 }
 

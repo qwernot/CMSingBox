@@ -22,7 +22,7 @@ curl -fsSL https://raw.githubusercontent.com/qwernot/CM/main/deploy/install.sh |
 
 ## Docker 独立 IP 部署
 
-Docker 使用 macvlan，为 CMSingBox 分配独立局域网 IP，避免与宿主机的 DNS 53、代理 2080、后台 9092 端口冲突。
+Docker 使用 macvlan，为 CMSingBox 分配独立局域网 IP，避免与宿主机的 DNS 53、代理 2080、后台 80 端口冲突。
 
 先在路由器 DHCP 自动分配范围之外准备一个空闲 IP，然后执行：
 
@@ -30,7 +30,7 @@ Docker 使用 macvlan，为 CMSingBox 分配独立局域网 IP，避免与宿主
 curl -fsSL https://raw.githubusercontent.com/qwernot/CM/main/deploy/install-docker.sh | sudo env CMSINGBOX_IP=192.168.1.20 sh
 ```
 
-请把 `192.168.1.20` 改成实际准备给 CMSingBox 使用的地址。安装完成后访问 `http://CMSingBox局域网IP:9092`。
+请把 `192.168.1.20` 改成实际准备给 CMSingBox 使用的地址。安装完成后访问 `http://CMSingBox局域网IP:80`。
 
 初始账号和密码均为 `admin`，首次登录后必须立即修改密码。
 
@@ -74,7 +74,7 @@ sudo sh deploy/license/install-formal-key.sh
 
 | 端口 | 协议 | 用途 |
 | --- | --- | --- |
-| 9092 | TCP | CMSingBox 管理后台 |
+| 80 | TCP | CMSingBox 管理后台 |
 | 2080 | TCP | HTTP/SOCKS5 混合代理 |
 | 53 | TCP/UDP | DNS 服务，默认关闭 |
 | 9090 | TCP | 代理控制台，使用当前访问 IP 自动连接 |

@@ -126,6 +126,11 @@ func NewServer(store *storage.JSONStore, processManager *daemon.ProcessManager, 
 	if err := s.autoApplyConfig(); err != nil {
 		logger.Printf("启动时自动应用配置失败: %v", err)
 	}
+	if store.GetSettings().TransparentProxy {
+		if err := s.firewall.Apply(s.firewallConfig()); err != nil {
+			logger.Printf("启动时恢复透明代理规则失败: %v", err)
+		}
+	}
 	if err := dnsService.Start(); err != nil {
 		logger.Printf("启动 DNS 服务失败: %v", err)
 	}

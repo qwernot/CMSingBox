@@ -80,7 +80,7 @@ export default function Dashboard() {
     refresh();
     const timer = setInterval(refresh, 5000);
     return () => clearInterval(timer);
-  }, []);
+  }, [fetchCountryGroups, fetchFilters, fetchManualNodes, fetchRuleGroups, fetchRules, fetchServiceStatus, fetchSubscriptions, fetchSystemInfo]);
   const action = async (title: string, task: () => Promise<unknown>) => {
     try { await task(); await fetchServiceStatus(); toast.success(`${title}成功`); }
     catch (cause) { showError(`${title}失败`, cause); }

@@ -75,24 +75,6 @@ export default function Settings() {
   const [licenseCode, setLicenseCode] = useState('');
   const [licenseBusy, setLicenseBusy] = useState(false);
 
-  useEffect(() => {
-    fetchSettings();
-    fetchKernelInfo();
-    fetchSystemHosts();
-    firewallApi.status().then((response) => setFirewallStatus(response.data.data)).catch(() => undefined);
-    maintenanceApi.preview().then((response) => setCleanupPreview(response.data.data)).catch(() => undefined);
-    fetchLicenseStatus();
-  }, []);
-
-  const fetchLicenseStatus = async () => {
-    try {
-      const response = await licenseApi.status();
-      setLicenseStatus(response.data.data);
-    } catch (error) {
-      console.error('获取授权状态失败:', error);
-    }
-  };
-
   const handleActivateLicense = async () => {
     setLicenseBusy(true);
     try {
@@ -145,14 +127,14 @@ export default function Settings() {
     }
   };
 
-  const fetchSystemHosts = async () => {
-    try {
-      const res = await settingsApi.getSystemHosts();
-      setSystemHosts(res.data.data || []);
-    } catch (error) {
-      console.error('获取系统 hosts 失败:', error);
-    }
-  };
+  useEffect(() => {
+    fetchSettings();
+    void kernelApi.getInfo().then((response) => setKernelInfo(response.data.data)).catch(() => undefined);
+    void settingsApi.getSystemHosts().then((response) => setSystemHosts(response.data.data || [])).catch(() => undefined);
+    void firewallApi.status().then((response) => setFirewallStatus(response.data.data)).catch(() => undefined);
+    void maintenanceApi.preview().then((response) => setCleanupPreview(response.data.data)).catch(() => undefined);
+    void licenseApi.status().then((response) => setLicenseStatus(response.data.data)).catch(() => undefined);
+  }, [fetchSettings]);
 
   // Hosts 处理函数
   const handleAddHost = () => {

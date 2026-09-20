@@ -23,5 +23,5 @@ FROM debian:bookworm-slim
 RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates nftables iproute2 tzdata && rm -rf /var/lib/apt/lists/*
 COPY --from=backend /out/cmsingbox /usr/local/bin/cmsingbox
 VOLUME ["/data"]
-EXPOSE 9092/tcp 2080/tcp 53/tcp 53/udp
-ENTRYPOINT ["cmsingbox", "-data", "/data", "-port", "9092"]
+EXPOSE 80/tcp 2080/tcp 53/tcp 53/udp
+ENTRYPOINT ["cmsingbox", "-data", "/data", "-port", "80"]

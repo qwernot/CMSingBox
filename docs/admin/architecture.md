@@ -25,7 +25,7 @@ docker compose build
 docker compose up -d
 ```
 
-公开部署使用 macvlan 为容器分配独立局域网 IP，并通过 bridge 网络访问互联网；需要 `NET_ADMIN`、`NET_RAW` 和 `/dev/net/tun`。打开 `http://容器IP:9092` 完成配置，网关默认示例为 `192.168.1.1`。
+公开部署使用 macvlan 为容器分配独立局域网 IP，并通过 bridge 网络访问互联网；需要 `NET_ADMIN`、`NET_RAW` 和 `/dev/net/tun`。打开 `http://容器IP:80` 完成配置，网关默认示例为 `192.168.1.1`。
 
 推荐顺序：
 

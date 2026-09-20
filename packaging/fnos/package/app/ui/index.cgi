@@ -12,6 +12,6 @@ if ! printf '%s' "$lan_ip" | grep -Eq '^([0-9]{1,3}\.){3}[0-9]{1,3}$'; then
   exit 0
 fi
 printf 'Status: 302 Found\r\n'
-printf 'Location: http://%s:9092/\r\n' "$lan_ip"
+printf 'Location: http://%s/\r\n' "$lan_ip"
 printf 'Content-Type: text/plain; charset=utf-8\r\n\r\n'
 printf '正在打开 CMSingBox...\n'

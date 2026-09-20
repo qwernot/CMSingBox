@@ -72,7 +72,7 @@ function UserContent() {
     <SectionTitle id="deploy" eyebrow="原生部署" title="一条命令安装 CMSingBox">
       <p>普通 Linux 服务器可直接安装原生程序和 sing-box 基础内核并由 systemd 管理，此命令<b>不经过 Docker，也不包含授权中心</b>。</p>
       <CodeBlock>{`curl -fsSL https://raw.githubusercontent.com/qwernot/CM/main/deploy/install.sh | sudo sh`}</CodeBlock>
-      <p>安装完成后访问脚本输出的 <span className="font-mono">http://设备IP:9092</span>。初始账号和密码均为 <span className="font-mono">admin</span>，首次登录后必须立即修改密码。</p>
+      <p>安装完成后访问脚本输出的 <span className="font-mono">http://设备IP:80</span>。初始账号和密码均为 <span className="font-mono">admin</span>，首次登录后必须立即修改密码。</p>
       <CodeBlock>{`# 查看运行状态和日志
 systemctl status cmsingbox --no-pager
 journalctl -u cmsingbox -f -n 100
@@ -82,7 +82,7 @@ journalctl -u cmsingbox -f -n 100
     </SectionTitle>
     <SectionTitle id="lan" eyebrow="小主机部署" title="局域网应该填写哪个 IP">
       <p>Docker 默认使用 macvlan，因此 CMSingBox 使用一个与小主机不同的独立局域网 IP。例如为容器预留 <span className="font-mono">192.168.1.20</span>：</p>
-      <CodeBlock>{`管理后台：http://192.168.1.20:9092
+      <CodeBlock>{`管理后台：http://192.168.1.20:80
 HTTP 代理：192.168.1.20:2080
 SOCKS5 代理：192.168.1.20:2080
 DNS（启用后）：192.168.1.20:53`}</CodeBlock>
@@ -120,7 +120,7 @@ DNS（启用后）：192.168.1.20:53`}</CodeBlock>
 function AdminContent() {
   return <>
     <SectionTitle id="admin-start" eyebrow="管理入门" title="登录与首次安全配置">
-      <p>通过 <span className="font-mono">http://服务器IP:9092</span> 打开 CMSingBox。首次登录后应立即在“设置 → 登录安全”中修改后台密码，并妥善保存。</p>
+      <p>通过 <span className="font-mono">http://服务器IP:80</span> 打开 CMSingBox。首次登录后应立即在“设置 → 登录安全”中修改后台密码，并妥善保存。</p>
       <Note kind="warning">后台管理端口不建议完全暴露到互联网。请使用安全组白名单、VPN、反向代理 HTTPS 或防火墙限制来源地址。</Note>
     </SectionTitle>
     <SectionTitle id="admin-deploy" eyebrow="Docker 部署" title="安装、更新和停止主程序">
@@ -138,7 +138,7 @@ docker compose down`}</CodeBlock>
       <Note kind="warning">不要删除 data 目录，否则配置和已激活许可证会丢失。</Note>
     </SectionTitle>
     <SectionTitle id="admin-lan" eyebrow="网络规划" title="局域网小主机与 Docker IP">
-      <p>CMSingBox 默认使用 macvlan 独立 IP，使 DNS 53、代理 2080 和后台 9092 都由容器独占，不与小主机已有服务抢端口。部署前必须按现场网络选择一个 DHCP 范围外的空闲地址。</p>
+      <p>CMSingBox 默认使用 macvlan 独立 IP，使 DNS 53、代理 2080 和后台 80 都由容器独占，不与小主机已有服务抢端口。部署前必须按现场网络选择一个 DHCP 范围外的空闲地址。</p>
       <div className="overflow-x-auto rounded-2xl border border-slate-200 dark:border-slate-800"><table className="w-full min-w-[600px] text-left text-sm"><thead className="bg-slate-50 dark:bg-slate-900"><tr><th className="p-4">项目</th><th className="p-4">示例</th><th className="p-4">要求</th></tr></thead><tbody className="divide-y divide-slate-200 dark:divide-slate-800"><tr><td className="p-4">小主机地址</td><td className="p-4 font-mono">192.168.1.232</td><td className="p-4">保持原有地址，不用于客户端连接</td></tr><tr><td className="p-4">CMSingBox 独立地址</td><td className="p-4 font-mono">192.168.1.20</td><td className="p-4">与小主机同网段、位于 DHCP 池外</td></tr><tr><td className="p-4">客户端代理地址</td><td className="p-4 font-mono">192.168.1.20:2080</td><td className="p-4">填写容器独立地址并开启局域网访问</td></tr></tbody></table></div>
       <Note kind="warning">macvlan 模式不会与宿主机 53 端口冲突，但宿主机默认无法直接访问 macvlan 容器。不要把 CMSingBox IP 放进路由器 DHCP 自动分配池，以免发生地址冲突。</Note>
     </SectionTitle>
@@ -147,7 +147,7 @@ docker compose down`}</CodeBlock>
       <Note><b>授权限制的是订阅链接数量。</b>未授权最多添加 1 条订阅链接；授权后按许可证额度添加。每条订阅中的节点数以及手动节点数不限制。</Note>
     </SectionTitle>
     <SectionTitle id="ports" eyebrow="网络服务" title="端口与 HTTP/SOCKS 代理">
-      <div className="overflow-x-auto rounded-2xl border border-slate-200 dark:border-slate-800"><table className="w-full min-w-[560px] text-left text-sm"><thead className="bg-slate-50 dark:bg-slate-900"><tr><th className="p-4">端口</th><th className="p-4">用途</th><th className="p-4">建议</th></tr></thead><tbody className="divide-y divide-slate-200 dark:divide-slate-800"><tr><td className="p-4 font-mono">9092/TCP</td><td className="p-4">CMSingBox 管理后台</td><td className="p-4">限制来源 IP</td></tr><tr><td className="p-4 font-mono">2080/TCP</td><td className="p-4">HTTP/SOCKS5 混合代理</td><td className="p-4">按需开放并建议启用认证</td></tr><tr><td className="p-4 font-mono">53/UDP,TCP</td><td className="p-4">DNS 监听</td><td className="p-4">仅对受信网络开放</td></tr><tr><td className="p-4 font-mono">9093/TCP</td><td className="p-4">授权签发后台</td><td className="p-4">只允许管理员访问</td></tr></tbody></table></div>
+      <div className="overflow-x-auto rounded-2xl border border-slate-200 dark:border-slate-800"><table className="w-full min-w-[560px] text-left text-sm"><thead className="bg-slate-50 dark:bg-slate-900"><tr><th className="p-4">端口</th><th className="p-4">用途</th><th className="p-4">建议</th></tr></thead><tbody className="divide-y divide-slate-200 dark:divide-slate-800"><tr><td className="p-4 font-mono">80/TCP</td><td className="p-4">CMSingBox 管理后台</td><td className="p-4">限制来源 IP</td></tr><tr><td className="p-4 font-mono">2080/TCP</td><td className="p-4">HTTP/SOCKS5 混合代理</td><td className="p-4">按需开放并建议启用认证</td></tr><tr><td className="p-4 font-mono">53/UDP,TCP</td><td className="p-4">DNS 监听</td><td className="p-4">仅对受信网络开放</td></tr><tr><td className="p-4 font-mono">9093/TCP</td><td className="p-4">授权签发后台</td><td className="p-4">只允许管理员访问</td></tr></tbody></table></div>
       <p className="mt-5">代理认证可以在设置中关闭；若服务暴露到公网，强烈建议开启。代理用户名和密码可单独修改，不依赖后台登录账号。</p>
     </SectionTitle>
     <SectionTitle id="dns" eyebrow="DNS 服务" title="监听地址和端口">

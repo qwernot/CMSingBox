@@ -16,7 +16,7 @@ import (
 )
 
 var (
-	Version               = "0.2.13"
+	Version               = "1.1.0"
 	BuildTime             = "unknown"
 	GitCommit             = "unknown"
 	LicensePublicKey      = ""
@@ -31,7 +31,7 @@ func init() {
 	defaultDataDir := filepath.Join(homeDir, ".cmsingbox")
 
 	flag.StringVar(&dataDir, "data", defaultDataDir, "数据目录")
-	flag.IntVar(&port, "port", 9090, "Web 服务端口")
+	flag.IntVar(&port, "port", 80, "Web 服务端口")
 }
 
 func main() {

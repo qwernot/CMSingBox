@@ -104,7 +104,7 @@ export default function Rules() {
     fetchRules();
     fetchFilters();
     fetchCountryGroups();
-  }, []);
+  }, [fetchCountryGroups, fetchFilters, fetchRuleGroups, fetchRules]);
 
   // 验证规则集（防抖）
   const validateRuleSet = useCallback(async (type: 'geosite' | 'geoip', names: string[]) => {
@@ -121,7 +121,7 @@ export default function Rules() {
       try {
         const response = await ruleSetApi.validate(type, name.trim());
         results[name] = response.data;
-      } catch (error) {
+      } catch {
         results[name] = {
           valid: false,
           url: '',

@@ -33,8 +33,13 @@ jobs:
         run: |
           cd web
           pnpm install --frozen-lockfile
+          pnpm run lint
           pnpm run build
 
-      - name: Build backend
+      - name: Test backend
         run: |
-          CGO_ENABLED=0 go build -o sbm ./cmd/sbm/
+          go test ./...
+          go vet ./...
+
+      - name: Build backend
+        run: VERSION=ci SKIP_FRONTEND=1 ./build.sh current

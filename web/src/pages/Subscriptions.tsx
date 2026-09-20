@@ -153,7 +153,7 @@ export default function Subscriptions() {
     fetchFilters();
     fetchSettings();
     licenseApi.status().then((response) => setLicenseStatus(response.data.data)).catch(() => undefined);
-  }, []);
+  }, [fetchCountryGroups, fetchFilters, fetchManualNodes, fetchSettings, fetchSubscriptions]);
 
   useEffect(() => {
     if (settings) setRefreshInterval(settings.subscription_interval ?? 60);

@@ -8,7 +8,7 @@
 
 ```text
 飞牛 NAS：原来的局域网 IP，继续使用飞牛自己的 53 端口
-CMSingBox：独立局域网 IP，例如 192.168.1.20，使用自己的 53/2080/9090/9092
+CMSingBox：独立局域网 IP，例如 192.168.1.20，使用自己的 53/2080/9090/80
 ```
 
 FPK 本身与 CPU 架构无关，Docker 会自动拉取 `darkver8/cmsingbox:latest` 中与飞牛 NAS 对应的 amd64、arm64 或 arm/v7 镜像。镜像已经包含默认 sing-box 内核。
@@ -17,14 +17,14 @@ FPK 本身与 CPU 架构无关，Docker 会自动拉取 `darkver8/cmsingbox:late
 
 ```bash
 cd /path/to/CMSingBox
-VERSION=1.0.27 sh packaging/fnos/build-fpk.sh
+VERSION=1.1.0 sh packaging/fnos/build-fpk.sh
 ```
 
 输出：
 
 ```text
-dist/fpk/CMSingBox-fnOS-1.0.27-all.fpk
-dist/fpk/CMSingBox-fnOS-1.0.27-all.fpk.sha256
+dist/fpk/CMSingBox-fnOS-1.1.0-all.fpk
+dist/fpk/CMSingBox-fnOS-1.1.0-all.fpk.sha256
 ```
 
 脚本没有检测到 `fnpack` 时，会从飞牛官方地址临时下载 `fnpack 1.2.3`。FPK 很小，第一次安装时飞牛需要联网拉取 CMSingBox 多架构镜像。
@@ -36,7 +36,7 @@ dist/fpk/CMSingBox-fnOS-1.0.27-all.fpk.sha256
 3. 在主路由 DHCP 地址池之外准备一个空闲 IP，例如 `192.168.1.20`。
 4. 打开“应用中心 → 手动安装”，上传 `CMSingBox-fnOS-版本-all.fpk`。
 5. 按向导填写独立 IP、飞牛 LAN 网卡、局域网网段和网关。
-6. 安装完成后点击飞牛桌面的 CMSingBox 图标，页面会跳转到独立 IP 的 9092 端口。
+6. 安装完成后点击飞牛桌面的 CMSingBox 图标，页面会跳转到独立 IP 的 80 端口。
 
 默认示例：
 

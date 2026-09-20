@@ -34,7 +34,7 @@ export default function Layout({ children, onLogout }: LayoutProps) {
   useEffect(() => {
     if (!settings) fetchSettings();
     if (!serviceStatus) fetchServiceStatus();
-  }, []);
+  }, [fetchServiceStatus, fetchSettings, serviceStatus, settings]);
   useEffect(() => {
     document.documentElement.classList.toggle('dark', darkMode);
     localStorage.setItem('sbm-theme', darkMode ? 'dark' : 'light');
