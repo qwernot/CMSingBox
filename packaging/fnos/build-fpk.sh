@@ -5,7 +5,7 @@ script_dir="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
 project_dir="$(CDPATH= cd -- "$script_dir/../.." && pwd)"
 package_dir="$script_dir/package"
 output_dir="$project_dir/dist/fpk"
-version="${VERSION:-1.1.4}"
+version="${VERSION:-1.1.5}"
 
 case "$version" in
   ''|*[!0-9A-Za-z._-]*) echo "版本号格式无效: $version" >&2; exit 1 ;;

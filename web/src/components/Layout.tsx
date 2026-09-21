@@ -57,7 +57,7 @@ export default function Layout({ children, onLogout }: LayoutProps) {
   const sidebar = (
     <div className="flex h-full flex-col bg-white text-slate-700 transition-colors dark:bg-[#0b1525] dark:text-slate-200">
       <div className="flex h-[76px] items-center gap-3 border-b border-slate-200 px-5 dark:border-white/[0.07]">
-        <img src="/favicon.svg?v=1.1.3" alt="CMSingBox" className="h-10 w-10" />
+        <img src="/favicon.svg?v=1.1.5" alt="CMSingBox" className="h-10 w-10" />
         <div><p className="text-[17px] font-semibold tracking-tight text-slate-950 dark:text-white">CMSingBox</p><p className="text-[10px] tracking-[0.15em] text-slate-400 dark:text-slate-500">NETWORK BOX</p></div>
         <button className="ml-auto rounded-lg p-2 text-slate-500 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-white/10 lg:hidden" onClick={() => setMobileOpen(false)} aria-label="关闭菜单"><X className="h-5 w-5" /></button>
       </div>

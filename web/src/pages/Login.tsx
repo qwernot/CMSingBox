@@ -34,9 +34,9 @@ export default function Login({ onSuccess }: LoginProps) {
     <div className="absolute inset-0 bg-cover bg-center" style={{ backgroundImage: "url('/api/login-background'), url('/login-ocean.svg')" }} />
     <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_42%,transparent_0%,rgba(1,24,40,.08)_52%,rgba(1,20,34,.38)_100%)]" />
 
-    <main className="relative w-full max-w-[448px] rounded-[28px] border border-white/20 bg-[#073246]/55 px-7 py-9 shadow-[0_28px_90px_rgba(0,25,43,.35)] backdrop-blur-md sm:px-9 sm:py-10">
+    <main className="relative w-full max-w-[448px] rounded-[28px] border border-white/20 bg-[#073246]/40 px-7 py-9 shadow-[0_28px_90px_rgba(0,25,43,.3)] backdrop-blur-sm sm:px-9 sm:py-10">
       <div className="mb-8 text-center">
-        <img src="/favicon.svg?v=1.1.3" alt="CMSingBox" className="mx-auto mb-4 h-16 w-16" />
+        <img src="/favicon.svg?v=1.1.5" alt="CMSingBox" className="mx-auto mb-4 h-16 w-16" />
         <h1 className="text-[28px] font-semibold tracking-tight text-white">CMSingBox</h1>
         <p className="mt-1.5 text-sm tracking-wide text-white/45">Sing-box Network Proxy Box</p>
       </div>
