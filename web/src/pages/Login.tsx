@@ -44,7 +44,7 @@ export default function Login({ onSuccess }: LoginProps) {
 
     <main className="relative w-full max-w-[448px] rounded-[28px] border border-white/20 px-7 py-9 shadow-[0_28px_90px_rgba(0,25,43,.3)] backdrop-blur-sm sm:px-9 sm:py-10" style={{ backgroundColor: `rgb(7 50 70 / ${panelOpacity / 100})` }}>
       <div className="mb-8 text-center">
-        <img src="/favicon.svg?v=1.1.6" alt="CMSingBox" className="mx-auto mb-4 h-16 w-16" />
+        <img src="/favicon.svg?v=1.1.7" alt="CMSingBox" className="mx-auto mb-4 h-16 w-16" />
         <h1 className="text-[28px] font-semibold tracking-tight text-white">CMSingBox</h1>
         <p className="mt-1.5 text-sm tracking-wide text-white/45">Sing-box Network Proxy Box</p>
       </div>
