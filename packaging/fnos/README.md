@@ -17,14 +17,14 @@ FPK 本身与 CPU 架构无关，Docker 会自动拉取 `darkver8/cmsingbox:late
 
 ```bash
 cd /path/to/CMSingBox
-VERSION=1.1.2 sh packaging/fnos/build-fpk.sh
+VERSION=1.1.3 sh packaging/fnos/build-fpk.sh
 ```
 
 输出：
 
 ```text
-dist/fpk/CMSingBox-fnOS-1.1.2-all.fpk
-dist/fpk/CMSingBox-fnOS-1.1.2-all.fpk.sha256
+dist/fpk/CMSingBox-fnOS-1.1.3-all.fpk
+dist/fpk/CMSingBox-fnOS-1.1.3-all.fpk.sha256
 ```
 
 脚本没有检测到 `fnpack` 时，会从飞牛官方地址临时下载 `fnpack 1.2.3`。FPK 很小，第一次安装时飞牛需要联网拉取 CMSingBox 多架构镜像。

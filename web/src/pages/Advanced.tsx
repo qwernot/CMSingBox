@@ -1,10 +1,11 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Button, Card, CardBody, CardHeader, Input, Select, SelectItem, Switch } from '@nextui-org/react';
-import { AlertTriangle, CheckCircle2, Code2, FileJson, House, PanelsTopLeft, Save, ScrollText, Server, Smartphone } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, Code2, FileJson, House, ImageUp, PanelsTopLeft, RotateCcw, Save, ScrollText, Server, Smartphone, Upload } from 'lucide-react';
 import { useStore } from '../store';
 import type { Settings } from '../store';
 import { toast } from '../components/Toast';
+import { settingsApi } from '../api';
 
 type EditorName = 'inbounds' | 'outbounds' | null;
 
@@ -15,6 +16,8 @@ export default function Advanced() {
   const [outbounds, setOutbounds] = useState('[]');
   const [editor, setEditor] = useState<EditorName>(null);
   const [saving, setSaving] = useState(false);
+  const [backgroundBusy, setBackgroundBusy] = useState(false);
+  const backgroundInputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => { if (!settings) fetchSettings(); }, [settings, fetchSettings]);
   useEffect(() => {
@@ -48,6 +51,30 @@ export default function Advanced() {
       toast.error(error instanceof Error ? error.message : '保存高级设置失败');
     } finally { setSaving(false); }
   };
+  const uploadBackground = async (file?: File) => {
+    if (!file) return;
+    if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) return toast.error('仅支持 JPG、PNG、WEBP');
+    if (file.size > 10 * 1024 * 1024) return toast.error('图片不能超过 10MB');
+    setBackgroundBusy(true);
+    try {
+      await settingsApi.uploadLoginBackground(file);
+      toast.success('登录背景已更新');
+    } catch (error: any) {
+      toast.error(error.response?.data?.error || '上传失败');
+    } finally {
+      setBackgroundBusy(false);
+      if (backgroundInputRef.current) backgroundInputRef.current.value = '';
+    }
+  };
+  const resetBackground = async () => {
+    setBackgroundBusy(true);
+    try {
+      await settingsApi.deleteLoginBackground();
+      toast.success('已恢复默认背景');
+    } catch (error: any) {
+      toast.error(error.response?.data?.error || '恢复失败');
+    } finally { setBackgroundBusy(false); }
+  };
 
   const saveButton = <Button color="primary" radius="lg" className="font-medium shadow-lg shadow-blue-500/15" startContent={<Save className="h-4 w-4" />} onPress={save} isLoading={saving}>保存并应用</Button>;
   const codeEditor = (title: string, description: string, value: string, onChange: (value: string) => void) => {
@@ -69,7 +96,8 @@ export default function Advanced() {
     <section><div className="mb-4 flex items-center gap-3"><PanelsTopLeft className="h-5 w-5 text-violet-500" /><div><h2 className="text-lg font-semibold">系统配置</h2><p className="text-xs text-slate-500">控制面板、DNS 策略与核心日志</p></div></div><div className="grid gap-5 xl:grid-cols-2">
       <Card className="app-panel"><CardHeader className="border-b border-slate-100 px-5 py-4 dark:border-slate-800"><h3 className="font-semibold">Clash 控制面板</h3></CardHeader><CardBody className="space-y-4 p-5"><Input type="number" label="Clash API 端口" value={String(formData.clash_api_port || 9090)} onChange={(event) => patch({ clash_api_port: Number(event.target.value) || 9090 })} /><Input type="password" label="控制面板密码" description="留空则无需密码；开放到公网时建议设置密码" value={formData.clash_api_secret || ''} onChange={(event) => patch({ clash_api_secret: event.target.value })} /><Input label="自定义面板 ZIP 下载地址（可选）" placeholder="留空使用内置 Zashboard" value={formData.clash_ui_url || ''} onChange={(event) => patch({ clash_ui_url: event.target.value, clash_ui_revision: Date.now() })} /><Input label="UI 下载出站" placeholder="DIRECT 或 Proxy" isDisabled={!formData.clash_ui_url} value={formData.clash_ui_detour || 'DIRECT'} onChange={(event) => patch({ clash_ui_detour: event.target.value })} /><p className="text-xs leading-5 text-slate-500">自定义面板下载到独立目录，不会覆盖内置 Zashboard。清空链接后恢复内置面板；这里只更新控制 UI，不会更新 sing-box 内核。</p><div className="flex flex-wrap gap-2"><Button as="a" href={clashUIURL} target="_blank" color="primary" variant="flat">打开控制 UI</Button><Button variant="flat" isDisabled={!formData.clash_ui_url} onPress={() => patch({ clash_ui_revision: Date.now() })}>重新下载 UI</Button><span className="self-center text-xs text-slate-500">点击重新下载后仍需保存并应用</span></div></CardBody></Card>
       <Card className="app-panel"><CardHeader className="border-b border-slate-100 px-5 py-4 dark:border-slate-800"><h3 className="font-semibold">DNS 配置</h3></CardHeader><CardBody className="space-y-4 p-5"><Select label="DNS 策略（全局）" selectedKeys={[formData.dns_strategy || 'prefer_ipv4']} onSelectionChange={(keys) => patch({ dns_strategy: String(Array.from(keys)[0] || 'prefer_ipv4') })}><SelectItem key="prefer_ipv4">优先 IPv4</SelectItem><SelectItem key="prefer_ipv6">优先 IPv6</SelectItem><SelectItem key="ipv4_only">仅 IPv4</SelectItem><SelectItem key="ipv6_only">仅 IPv6</SelectItem></Select><Input label="代理 DNS 解析服务器" description="由 sing-box 经代理出站访问；默认 Google 8.8.8.8 的 HTTPS DNS" placeholder="https://8.8.8.8/dns-query" value={formData.proxy_dns || ''} onChange={(event) => patch({ proxy_dns: event.target.value })} /><Input label="直连 DNS 解析服务器" placeholder="udp://223.5.5.5:53" value={formData.direct_dns || ''} onChange={(event) => patch({ direct_dns: event.target.value })} /><Input label="FakeIP 网段" value={formData.fakeip_range || '198.18.0.0/15'} onChange={(event) => patch({ fakeip_range: event.target.value })} /><p className="text-xs leading-5 text-slate-500">独立 DNS 服务监听、设备例外和 Hosts 映射仍在“系统设置 → DNS 配置”中管理。</p></CardBody></Card>
-      <Card className="app-panel xl:col-span-2"><CardHeader className="border-b border-slate-100 px-5 py-4 dark:border-slate-800"><div className="flex items-center gap-2"><ScrollText className="h-4 w-4 text-cyan-500" /><h3 className="font-semibold">日志配置</h3></div></CardHeader><CardBody className="grid gap-4 p-5 sm:grid-cols-2 xl:grid-cols-4"><div className="flex items-center justify-between rounded-xl bg-slate-50 px-4 dark:bg-slate-900/70"><span className="text-sm">启用日志</span><Switch isSelected={formData.log_enabled} onValueChange={(value) => patch({ log_enabled: value })} /></div><div className="flex items-center justify-between rounded-xl bg-slate-50 px-4 dark:bg-slate-900/70"><span className="text-sm">显示时间戳</span><Switch isSelected={formData.log_timestamp} onValueChange={(value) => patch({ log_timestamp: value })} /></div><Select label="日志级别" selectedKeys={[formData.log_level || 'info']} onSelectionChange={(keys) => patch({ log_level: String(Array.from(keys)[0]) })}>{['trace','debug','info','warn','error','fatal','panic'].map((level) => <SelectItem key={level}>{level}</SelectItem>)}</Select><Input label="日志路径" placeholder="留空使用默认路径" value={formData.log_path || ''} onChange={(event) => patch({ log_path: event.target.value })} /></CardBody></Card>
+      <Card className="app-panel"><CardHeader className="border-b border-slate-100 px-5 py-4 dark:border-slate-800"><div className="flex items-center gap-2"><ScrollText className="h-4 w-4 text-cyan-500" /><h3 className="font-semibold">日志配置</h3></div></CardHeader><CardBody className="grid gap-4 p-5 sm:grid-cols-2"><div className="flex items-center justify-between rounded-xl bg-slate-50 px-4 dark:bg-slate-900/70"><span className="text-sm">启用日志</span><Switch isSelected={formData.log_enabled} onValueChange={(value) => patch({ log_enabled: value })} /></div><div className="flex items-center justify-between rounded-xl bg-slate-50 px-4 dark:bg-slate-900/70"><span className="text-sm">显示时间戳</span><Switch isSelected={formData.log_timestamp} onValueChange={(value) => patch({ log_timestamp: value })} /></div><Select label="日志级别" selectedKeys={[formData.log_level || 'info']} onSelectionChange={(keys) => patch({ log_level: String(Array.from(keys)[0]) })}>{['trace','debug','info','warn','error','fatal','panic'].map((level) => <SelectItem key={level}>{level}</SelectItem>)}</Select><Input label="日志路径" placeholder="留空使用默认路径" value={formData.log_path || ''} onChange={(event) => patch({ log_path: event.target.value })} /></CardBody></Card>
+      <Card className="app-panel"><CardHeader className="flex justify-between border-b border-slate-100 px-5 py-4 dark:border-slate-800"><div className="flex items-center gap-3"><span className="grid h-10 w-10 place-items-center rounded-xl bg-violet-500/10 text-violet-500"><ImageUp className="h-5 w-5" /></span><div><h3 className="font-semibold">登录页背景图片</h3><p className="text-xs text-slate-500">支持 JPG、PNG、WEBP，最大 10MB</p></div></div><Button isIconOnly size="sm" variant="light" aria-label="恢复默认背景" isDisabled={backgroundBusy} onPress={resetBackground}><RotateCcw className="h-4 w-4" /></Button></CardHeader><CardBody className="p-5"><button type="button" disabled={backgroundBusy} onClick={() => backgroundInputRef.current?.click()} onDragOver={(event) => event.preventDefault()} onDrop={(event) => { event.preventDefault(); void uploadBackground(event.dataTransfer.files[0]); }} className="grid min-h-44 w-full place-items-center rounded-2xl border-2 border-dashed border-slate-200 text-slate-400 transition hover:border-violet-400 hover:bg-violet-500/[0.03] hover:text-violet-500 disabled:cursor-wait disabled:opacity-60 dark:border-slate-700"><span className="flex flex-col items-center gap-3"><Upload className="h-7 w-7" /><span className="text-sm">{backgroundBusy ? '正在上传…' : '选择图片或拖放到这里'}</span></span></button><input ref={backgroundInputRef} type="file" accept="image/jpeg,image/png,image/webp" className="hidden" onChange={(event) => void uploadBackground(event.target.files?.[0])} /></CardBody></Card>
     </div></section>
 
     <section className="app-panel overflow-hidden"><div className="flex flex-col gap-3 border-b border-slate-200/80 px-5 py-5 dark:border-slate-800 sm:flex-row sm:items-center sm:justify-between"><div className="flex items-start gap-3"><span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-blue-50 text-blue-600 dark:bg-blue-500/10 dark:text-blue-400"><Code2 className="h-5 w-5" /></span><div><h2 className="text-base font-semibold">Sing-box 配置扩展</h2><p className="mt-1 text-xs leading-5 text-slate-500">系统没有提供的字段才需要在这里追加，默认保持为空。</p></div></div><span className="w-fit rounded-full bg-amber-50 px-3 py-1 text-[11px] font-medium text-amber-700 dark:bg-amber-500/10 dark:text-amber-300">修改前建议备份</span></div>
