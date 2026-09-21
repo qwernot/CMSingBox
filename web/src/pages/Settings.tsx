@@ -75,7 +75,6 @@ export default function Settings() {
   const [licenseCode, setLicenseCode] = useState('');
   const [licenseBusy, setLicenseBusy] = useState(false);
   const [backgroundBusy, setBackgroundBusy] = useState(false);
-  const [backgroundRevision, setBackgroundRevision] = useState(Date.now());
   const backgroundInputRef = useRef<HTMLInputElement | null>(null);
 
   const handleActivateLicense = async () => {
@@ -119,7 +118,6 @@ export default function Settings() {
     setBackgroundBusy(true);
     try {
       await settingsApi.uploadLoginBackground(file);
-      setBackgroundRevision(Date.now());
       toast.success('登录背景已更新');
     } catch (error: any) {
       toast.error(error.response?.data?.error || '上传失败');
@@ -133,7 +131,6 @@ export default function Settings() {
     setBackgroundBusy(true);
     try {
       await settingsApi.deleteLoginBackground();
-      setBackgroundRevision(Date.now());
       toast.success('已恢复默认背景');
     } catch (error: any) {
       toast.error(error.response?.data?.error || '恢复失败');
@@ -478,21 +475,6 @@ export default function Settings() {
           保存设置
         </Button>
       </div>
-
-      <Card>
-        <CardHeader className="gap-3">
-          <div className="grid h-10 w-10 place-items-center rounded-xl bg-secondary-100 text-secondary"><ImageUp className="h-5 w-5" /></div>
-          <div><h2 className="text-lg font-semibold">登录页背景图片</h2><p className="text-sm text-default-500">支持 JPG、PNG、WEBP，最大 10MB</p></div>
-        </CardHeader>
-        <CardBody className="space-y-3">
-          <div className="h-40 rounded-xl border border-dashed border-default-300 bg-cover bg-center" style={{ backgroundImage: `url('/api/login-background?v=${backgroundRevision}'), url('/login-ocean.svg')` }} />
-          <div className="flex flex-wrap gap-2">
-            <Button color="secondary" variant="flat" startContent={<ImageUp className="h-4 w-4" />} isLoading={backgroundBusy} onPress={() => backgroundInputRef.current?.click()}>选择图片</Button>
-            <Button variant="flat" startContent={<RotateCcw className="h-4 w-4" />} isDisabled={backgroundBusy} onPress={handleResetLoginBackground}>恢复默认</Button>
-            <input ref={backgroundInputRef} type="file" accept="image/jpeg,image/png,image/webp" className="hidden" onChange={(event) => handleLoginBackground(event.target.files?.[0])} />
-          </div>
-        </CardBody>
-      </Card>
 
       <Card>
         <CardHeader className="flex justify-between items-center">
@@ -881,6 +863,20 @@ export default function Settings() {
             value={String(formData.subscription_interval)}
             onChange={(e) => setFormData({ ...formData, subscription_interval: parseInt(e.target.value) || 0 })}
           />
+        </CardBody>
+      </Card>
+
+      <Card>
+        <CardHeader className="gap-3">
+          <div className="grid h-10 w-10 place-items-center rounded-xl bg-secondary-100 text-secondary"><ImageUp className="h-5 w-5" /></div>
+          <div><h2 className="text-lg font-semibold">登录页背景图片</h2><p className="text-sm text-default-500">支持 JPG、PNG、WEBP，最大 10MB</p></div>
+        </CardHeader>
+        <CardBody>
+          <div className="flex flex-wrap gap-2">
+            <Button color="secondary" variant="flat" startContent={<ImageUp className="h-4 w-4" />} isLoading={backgroundBusy} onPress={() => backgroundInputRef.current?.click()}>选择图片</Button>
+            <Button variant="flat" startContent={<RotateCcw className="h-4 w-4" />} isDisabled={backgroundBusy} onPress={handleResetLoginBackground}>恢复默认</Button>
+            <input ref={backgroundInputRef} type="file" accept="image/jpeg,image/png,image/webp" className="hidden" onChange={(event) => handleLoginBackground(event.target.files?.[0])} />
+          </div>
         </CardBody>
       </Card>
 

@@ -1,5 +1,18 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
-  <defs><linearGradient id="g" x1="8" y1="5" x2="55" y2="60" gradientUnits="userSpaceOnUse"><stop stop-color="#65b8ff"/><stop offset="1" stop-color="#2468ee"/></linearGradient></defs>
-  <rect width="64" height="64" rx="17" fill="url(#g)"/>
-  <path d="m32 14 15 8.3v17.4L32 48 17 39.7V22.3L32 14Zm0 4.7-9.9 5.5 9.9 5.4 9.9-5.4-9.9-5.5Zm-11 9.1v9.5l8.7 4.8v-9.5L21 27.8Zm22 0-8.7 4.8v9.5l8.7-4.8v-9.5Z" fill="#fff"/>
+  <defs>
+    <linearGradient id="bg" x1="8" y1="6" x2="56" y2="58" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#30251d"/>
+      <stop offset="1" stop-color="#100d0b"/>
+    </linearGradient>
+    <linearGradient id="top" x1="19" y1="19" x2="45" y2="31" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#ffd166"/>
+      <stop offset="1" stop-color="#f97316"/>
+    </linearGradient>
+  </defs>
+  <rect x="2" y="2" width="60" height="60" rx="17" fill="url(#bg)"/>
+  <rect x="2.75" y="2.75" width="58.5" height="58.5" rx="16.25" fill="none" stroke="#f59e0b" stroke-opacity=".35" stroke-width="1.5"/>
+  <path d="m32 13 17 9.5L32 32 15 22.5 32 13Z" fill="url(#top)"/>
+  <path d="m15 26 15 8.4V51l-15-8.5V26Z" fill="#ea580c"/>
+  <path d="m49 26-15 8.4V51l15-8.5V26Z" fill="#f59e0b"/>
+  <path d="m23 22.4 9-5 9 5-9 5-9-5Z" fill="#fff7ed" fill-opacity=".92"/>
 </svg>
