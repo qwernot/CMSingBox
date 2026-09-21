@@ -31,7 +31,7 @@ export default function Login({ onSuccess }: LoginProps) {
   };
 
   return <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-[#087e9f] p-4 sm:p-6">
-    <div className="absolute inset-0 bg-[url('/login-ocean.svg')] bg-cover bg-center" />
+    <div className="absolute inset-0 bg-cover bg-center" style={{ backgroundImage: "url('/api/login-background'), url('/login-ocean.svg')" }} />
     <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_42%,transparent_0%,rgba(1,24,40,.08)_52%,rgba(1,20,34,.38)_100%)]" />
 
     <main className="relative w-full max-w-[448px] rounded-[28px] border border-white/20 bg-[#073246]/80 px-7 py-9 shadow-[0_28px_90px_rgba(0,25,43,.45)] backdrop-blur-2xl sm:px-9 sm:py-10">

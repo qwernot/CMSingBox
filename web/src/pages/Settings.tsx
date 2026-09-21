@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef } from 'react';
 import { Card, CardBody, CardHeader, Input, Button, Switch, Chip, Modal, ModalContent, ModalHeader, ModalBody, ModalFooter, Select, SelectItem, Progress, Textarea, useDisclosure } from '@nextui-org/react';
-import { Save, Download, Upload, Terminal, CheckCircle, AlertCircle, Plus, Pencil, Trash2, Server, Eye, EyeOff, Copy, RefreshCw, Wifi, ShieldCheck, Database, ShoppingCart } from 'lucide-react';
+import { Save, Download, Upload, Terminal, CheckCircle, AlertCircle, Plus, Pencil, Trash2, Server, Eye, EyeOff, Copy, RefreshCw, Wifi, ShieldCheck, Database, ShoppingCart, ImageUp, RotateCcw } from 'lucide-react';
 import { useStore } from '../store';
 import type { Settings as SettingsType, HostEntry } from '../store';
 import { authApi, backupApi, firewallApi, kernelApi, licenseApi, maintenanceApi, settingsApi } from '../api';
@@ -74,6 +74,9 @@ export default function Settings() {
   const [licenseStatus, setLicenseStatus] = useState<LicenseStatus | null>(null);
   const [licenseCode, setLicenseCode] = useState('');
   const [licenseBusy, setLicenseBusy] = useState(false);
+  const [backgroundBusy, setBackgroundBusy] = useState(false);
+  const [backgroundRevision, setBackgroundRevision] = useState(Date.now());
+  const backgroundInputRef = useRef<HTMLInputElement | null>(null);
 
   const handleActivateLicense = async () => {
     setLicenseBusy(true);
@@ -100,6 +103,42 @@ export default function Settings() {
       toast.error(error.response?.data?.error || '清除授权失败');
     } finally {
       setLicenseBusy(false);
+    }
+  };
+
+  const handleLoginBackground = async (file?: File) => {
+    if (!file) return;
+    if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
+      toast.error('仅支持 JPG、PNG、WEBP');
+      return;
+    }
+    if (file.size > 10 * 1024 * 1024) {
+      toast.error('图片不能超过 10MB');
+      return;
+    }
+    setBackgroundBusy(true);
+    try {
+      await settingsApi.uploadLoginBackground(file);
+      setBackgroundRevision(Date.now());
+      toast.success('登录背景已更新');
+    } catch (error: any) {
+      toast.error(error.response?.data?.error || '上传失败');
+    } finally {
+      setBackgroundBusy(false);
+      if (backgroundInputRef.current) backgroundInputRef.current.value = '';
+    }
+  };
+
+  const handleResetLoginBackground = async () => {
+    setBackgroundBusy(true);
+    try {
+      await settingsApi.deleteLoginBackground();
+      setBackgroundRevision(Date.now());
+      toast.success('已恢复默认背景');
+    } catch (error: any) {
+      toast.error(error.response?.data?.error || '恢复失败');
+    } finally {
+      setBackgroundBusy(false);
     }
   };
 
@@ -439,6 +478,21 @@ export default function Settings() {
           保存设置
         </Button>
       </div>
+
+      <Card>
+        <CardHeader className="gap-3">
+          <div className="grid h-10 w-10 place-items-center rounded-xl bg-secondary-100 text-secondary"><ImageUp className="h-5 w-5" /></div>
+          <div><h2 className="text-lg font-semibold">登录页背景图片</h2><p className="text-sm text-default-500">支持 JPG、PNG、WEBP，最大 10MB</p></div>
+        </CardHeader>
+        <CardBody className="space-y-3">
+          <div className="h-40 rounded-xl border border-dashed border-default-300 bg-cover bg-center" style={{ backgroundImage: `url('/api/login-background?v=${backgroundRevision}'), url('/login-ocean.svg')` }} />
+          <div className="flex flex-wrap gap-2">
+            <Button color="secondary" variant="flat" startContent={<ImageUp className="h-4 w-4" />} isLoading={backgroundBusy} onPress={() => backgroundInputRef.current?.click()}>选择图片</Button>
+            <Button variant="flat" startContent={<RotateCcw className="h-4 w-4" />} isDisabled={backgroundBusy} onPress={handleResetLoginBackground}>恢复默认</Button>
+            <input ref={backgroundInputRef} type="file" accept="image/jpeg,image/png,image/webp" className="hidden" onChange={(event) => handleLoginBackground(event.target.files?.[0])} />
+          </div>
+        </CardBody>
+      </Card>
 
       <Card>
         <CardHeader className="flex justify-between items-center">

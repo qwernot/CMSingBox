@@ -93,6 +93,12 @@ export const settingsApi = {
   get: () => api.get('/settings'),
   update: (data: any) => api.put('/settings', data),
   getSystemHosts: () => api.get('/system-hosts'),
+  uploadLoginBackground: (file: File) => {
+    const form = new FormData();
+    form.append('file', file);
+    return api.post('/settings/login-background', form);
+  },
+  deleteLoginBackground: () => api.delete('/settings/login-background'),
 };
 
 // 配置 API

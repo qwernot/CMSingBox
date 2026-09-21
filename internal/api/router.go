@@ -170,6 +170,7 @@ func (s *Server) setupRoutes() {
 	{
 		api.POST("/auth/login", s.login)
 		api.GET("/auth/status", s.authStatus)
+		api.GET("/login-background", s.getLoginBackground)
 
 		protected := api.Group("")
 		protected.Use(s.requireAuth())
@@ -211,6 +212,8 @@ func (s *Server) setupRoutes() {
 		// 设置
 		protected.GET("/settings", s.getSettings)
 		protected.PUT("/settings", s.updateSettings)
+		protected.POST("/settings/login-background", s.uploadLoginBackground)
+		protected.DELETE("/settings/login-background", s.deleteLoginBackground)
 
 		// 系统 hosts
 		protected.GET("/system-hosts", s.getSystemHosts)
