@@ -152,13 +152,14 @@ type Settings struct {
 	BackHomeKeyPath    string                   `json:"backhome_key_path"`
 
 	// 控制面板
-	WebPort         int    `json:"web_port"`          // 管理界面端口
-	ClashAPIPort    int    `json:"clash_api_port"`    // Clash API 端口
-	ClashUIPath     string `json:"clash_ui_path"`     // zashboard 路径
-	ClashAPISecret  string `json:"clash_api_secret"`  // ClashAPI 密钥
-	ClashUIURL      string `json:"clash_ui_url"`      // 可选的外部 UI 下载地址
-	ClashUIDetour   string `json:"clash_ui_detour"`   // UI 下载出站
-	ClashUIRevision int64  `json:"clash_ui_revision"` // 手动刷新自定义 UI 时更换下载目录
+	WebPort           int    `json:"web_port"`            // 管理界面端口
+	ClashAPIPort      int    `json:"clash_api_port"`      // Clash API 端口
+	ClashUIPath       string `json:"clash_ui_path"`       // zashboard 路径
+	ClashAPISecret    string `json:"clash_api_secret"`    // ClashAPI 密钥
+	ClashUIURL        string `json:"clash_ui_url"`        // 可选的外部 UI 下载地址
+	ClashUIDetour     string `json:"clash_ui_detour"`     // UI 下载出站
+	ClashUIRevision   int64  `json:"clash_ui_revision"`   // 手动刷新自定义 UI 时更换下载目录
+	LoginPanelOpacity int    `json:"login_panel_opacity"` // 登录框透明度（10-90）
 
 	// 漏网规则
 	FinalOutbound string `json:"final_outbound"` // 默认出站
@@ -215,6 +216,7 @@ func DefaultSettings() *Settings {
 		ClashUIPath:          "zashboard",
 		ClashAPISecret:       "",
 		ClashUIDetour:        "DIRECT",
+		LoginPanelOpacity:    40,
 		FinalOutbound:        "Proxy",
 		RuleSetBaseURL:       DefaultRuleSetBaseURL,
 		AutoApply:            true, // 默认开启自动应用

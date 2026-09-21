@@ -134,6 +134,7 @@ export interface Settings {
   clash_ui_url: string;
   clash_ui_revision: number;
   clash_ui_detour: string;
+  login_panel_opacity: number;
   final_outbound: string;
   ruleset_base_url: string;
   auto_apply: boolean;           // 配置变更后自动应用

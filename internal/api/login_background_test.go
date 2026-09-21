@@ -2,6 +2,7 @@ package api
 
 import (
 	"bytes"
+	"encoding/json"
 	"image"
 	"image/color"
 	"image/png"
@@ -10,6 +11,25 @@ import (
 	"net/http/httptest"
 	"testing"
 )
+
+func TestLoginAppearanceIsPublic(t *testing.T) {
+	server := newAuthTestServer(t)
+	response := performJSONRequest(t, server, http.MethodGet, "/api/login-appearance", nil)
+	if response.Code != http.StatusOK {
+		t.Fatalf("appearance returned %d: %s", response.Code, response.Body.String())
+	}
+	var payload struct {
+		Data struct {
+			PanelOpacity int `json:"panel_opacity"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal(response.Body.Bytes(), &payload); err != nil {
+		t.Fatal(err)
+	}
+	if payload.Data.PanelOpacity != 40 {
+		t.Fatalf("expected default opacity 40, got %d", payload.Data.PanelOpacity)
+	}
+}
 
 func TestLoginBackgroundLifecycle(t *testing.T) {
 	server := newAuthTestServer(t)

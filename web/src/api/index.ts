@@ -91,6 +91,7 @@ export const ruleSetApi = {
 // 设置 API
 export const settingsApi = {
   get: () => api.get('/settings'),
+  getLoginAppearance: () => api.get('/login-appearance'),
   update: (data: any) => api.put('/settings', data),
   getSystemHosts: () => api.get('/system-hosts'),
   uploadLoginBackground: (file: File) => {

@@ -171,6 +171,7 @@ func (s *Server) setupRoutes() {
 		api.POST("/auth/login", s.login)
 		api.GET("/auth/status", s.authStatus)
 		api.GET("/login-background", s.getLoginBackground)
+		api.GET("/login-appearance", s.getLoginAppearance)
 
 		protected := api.Group("")
 		protected.Use(s.requireAuth())
@@ -703,6 +704,10 @@ func (s *Server) updateSettings(c *gin.Context) {
 	}
 	if settings.TransparentBackend == "routeros_redirect" && settings.TransparentProxy && !settings.TunEnabled {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "RouterOS 兼容模式需要同时启用 TUN"})
+		return
+	}
+	if settings.LoginPanelOpacity < 10 || settings.LoginPanelOpacity > 90 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "登录框透明度必须在 10% 到 90% 之间"})
 		return
 	}
 

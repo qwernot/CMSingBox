@@ -1,7 +1,7 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { FormEvent } from 'react';
 import { ArrowRight, Eye, EyeOff, LockKeyhole, ShieldCheck, User } from 'lucide-react';
-import { authApi } from '../api';
+import { authApi, settingsApi } from '../api';
 
 interface LoginProps { onSuccess: () => void; }
 
@@ -12,6 +12,14 @@ export default function Login({ onSuccess }: LoginProps) {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [panelOpacity, setPanelOpacity] = useState(40);
+
+  useEffect(() => {
+    void settingsApi.getLoginAppearance().then((response) => {
+      const value = Number(response.data.data?.panel_opacity) || 40;
+      setPanelOpacity(Math.min(90, Math.max(10, value)));
+    }).catch(() => undefined);
+  }, []);
 
   const submit = async (event: FormEvent) => {
     event.preventDefault();
@@ -34,9 +42,9 @@ export default function Login({ onSuccess }: LoginProps) {
     <div className="absolute inset-0 bg-cover bg-center" style={{ backgroundImage: "url('/api/login-background'), url('/login-ocean.svg')" }} />
     <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_42%,transparent_0%,rgba(1,24,40,.08)_52%,rgba(1,20,34,.38)_100%)]" />
 
-    <main className="relative w-full max-w-[448px] rounded-[28px] border border-white/20 bg-[#073246]/40 px-7 py-9 shadow-[0_28px_90px_rgba(0,25,43,.3)] backdrop-blur-sm sm:px-9 sm:py-10">
+    <main className="relative w-full max-w-[448px] rounded-[28px] border border-white/20 px-7 py-9 shadow-[0_28px_90px_rgba(0,25,43,.3)] backdrop-blur-sm sm:px-9 sm:py-10" style={{ backgroundColor: `rgb(7 50 70 / ${panelOpacity / 100})` }}>
       <div className="mb-8 text-center">
-        <img src="/favicon.svg?v=1.1.5" alt="CMSingBox" className="mx-auto mb-4 h-16 w-16" />
+        <img src="/favicon.svg?v=1.1.6" alt="CMSingBox" className="mx-auto mb-4 h-16 w-16" />
         <h1 className="text-[28px] font-semibold tracking-tight text-white">CMSingBox</h1>
         <p className="mt-1.5 text-sm tracking-wide text-white/45">Sing-box Network Proxy Box</p>
       </div>

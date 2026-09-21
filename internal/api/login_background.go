@@ -36,6 +36,12 @@ func (s *Server) getLoginBackground(c *gin.Context) {
 	c.Data(http.StatusOK, http.DetectContentType(data), data)
 }
 
+func (s *Server) getLoginAppearance(c *gin.Context) {
+	c.JSON(http.StatusOK, gin.H{"data": gin.H{
+		"panel_opacity": s.store.GetSettings().LoginPanelOpacity,
+	}})
+}
+
 func (s *Server) uploadLoginBackground(c *gin.Context) {
 	fileHeader, err := c.FormFile("file")
 	if err != nil {
