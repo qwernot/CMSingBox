@@ -6,7 +6,7 @@
 
 set -e
 
-VERSION=${VERSION:-"1.1.3"}
+VERSION=${VERSION:-"1.1.4"}
 BUILD_TIME=$(date -u '+%Y-%m-%d %H:%M:%S')
 GIT_COMMIT=$(git rev-parse --short HEAD 2>/dev/null || echo "unknown")
 LICENSE_PUBLIC_KEY=${LICENSE_PUBLIC_KEY:-"EwFgPIqxKUjPY45bIUHviX4fyZLAGoww6q5QJs9fKcE="}
