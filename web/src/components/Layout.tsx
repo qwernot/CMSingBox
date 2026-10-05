@@ -64,8 +64,8 @@ export default function Layout({ children, onLogout }: LayoutProps) {
 
       <nav className="flex-1 overflow-y-auto overscroll-contain px-3 py-5">
         {menuGroups.map((group) => (
-          <div key={group.label} className="mb-6">
-            <p className="mb-2 px-3 text-[10px] font-semibold tracking-[0.18em] text-slate-400 dark:text-slate-500">{group.label}</p>
+          <div key={group.label} role="group" aria-label={group.label} className="mb-6 border-b border-slate-100 pb-4 last:border-b-0 dark:border-white/[0.06]">
+            <p className="mb-2 flex items-center gap-2 px-3 text-xs font-bold tracking-[0.12em] text-slate-500 dark:text-slate-400"><span className="h-1.5 w-1.5 rounded-full bg-blue-500" />{group.label}</p>
             <div className="space-y-1">
               {group.items.map((item) => {
                 const active = location.pathname === item.path;
